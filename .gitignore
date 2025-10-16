@@ -1,0 +1,9 @@
+# Ignore all files and folders by default
+*
+
+# --- EXCEPTIONS ---
+# But DO include these specific project folders and files
+!_templater_scripts/
+!templates/
+!README.md
+!.gitignore
