@@ -1,42 +1,43 @@
-# Obsidian University Workflow Template
+# Obsidian University Workflow
 
-A modular, context-aware Templater system designed to automate note-taking for university students. This workflow turns Obsidian into an intelligent "second brain" that automatically organizes lecture notes by subject and exam period.
+A modular Templater system for students. This project provides a set of powerful, context-aware templates and scripts to automate academic note-taking in Obsidian.
 
-It's built to be **fast**, **smart**, and **maintainable**, letting you focus on learning, not file management.
+It's designed to be dropped into any vault to provide a robust foundation for building a "second brain" for your studies.
 
 ---
 
 ## ✨ Features
 
--   **✍️ Interactive Smart Naming:** Prompts you for a lecture topic to create clear, scannable filenames like `Lecture 2025-10-16 - Intro to Pointers.md`.
--   **🗂️ Full Context-Aware Metadata:** Automatically detects the `course` and `parcial` (exam period) from the folder structure and adds them to your note's properties.
--   **🚀 Frictionless Start:** The cursor is automatically placed in the "Definitions" section of a new note, so you can start typing immediately after creation.
--   **🔧 Modular & Maintainable:** Uses a central User Script (`getUniversityContext.js`) to handle all context detection, making the system easy to update and extend (DRY principle).
--   **🏛️ Structured for Deep Learning:** The note layout includes sections for `Summary`, `Definitions`, `Key Concepts`, and `Explanation in My Own Words` to encourage processing and retention over simple transcription.
+-   **✍️ Interactive Smart Naming:** Prompts for a lecture topic to create clear, scannable filenames like `Lecture 2025-10-16 - Intro to Pointers.md`.
+-   **🗂️ Automatic Metadata:** Detects the `course` and `parcial` (exam period) from your folder structure and adds them to your note's properties.
+-   **🚀 Frictionless Start:** The cursor is automatically placed where you need to start typing in a new note, saving you clicks and time.
+-   **🔧 Modular & Maintainable:** Uses a central User Script (`getUniversityContext.js`) to handle all context detection, making the system easy to adapt and extend.
+-   **🏛️ Structured for Deep Learning:** The note layout encourages processing and retention with dedicated sections for `Summary`, `Definitions`, `Key Concepts`, and `Explanation in My Own Words`.
 
 ---
 
 ## ✅ Prerequisites
 
-1.  **Obsidian:** You must have Obsidian installed.
-2.  **Templater Plugin:** This system relies heavily on the Templater community plugin.
-3.  **Crucial Setting:** You **must** configure Obsidian's settings. Go to **Settings -> Files and Links** and set **"Default location for new notes"** to **"Same folder as current file"**.
+This system assumes a basic folder structure for university notes. For the context detection to work, your lecture notes should be inside a path similar to this:
+`.../Universidad/[Subject Name]/[Parcial Name]/`
+
+You will also need the following installed in Obsidian:
+1.  **Templater Plugin:** The engine that runs all automation.
+2.  **Dataview Plugin:** Required for the upcoming "Subject Hub" dashboard template.
 
 ---
 
 ## ⚙️ How to Install
 
-1.  **Download the Repository:** Click the green "Code" button on this page and select "Download ZIP". Unzip the folder.
-2.  **Copy the User Script:**
-    -   Create a folder in your Obsidian vault named `_templater_scripts` (or whatever you prefer).
-    -   Copy the `getUniversityContext.js` file from the repository into your vault's script folder.
-3.  **Copy the Template:**
-    -   Copy the `Lecture Note Template.md` file into your main Templater folder (e.g., `_templates`).
-4.  **Configure Templater:**
+1.  **Download:** Click the green "Code" button on this page and select "Download ZIP". Unzip the folder.
+2.  **Copy Scripts & Templates:**
+    -   Copy the `_templater_scripts` folder into the root of your Obsidian vault.
+    -   Copy the `templates` folder into the root of your Obsidian vault.
+3.  **Configure Templater:**
     -   Go to **Settings -> Templater**.
-    -   Under "Template folder location," make sure you've selected your templates folder (e.g., `_templates`).
-    -   Under "User Script Functions," set the "Script files folder location" to the folder you created in step 2 (e.g., `_templater_scripts`).
-    -   Bind the `Lecture Note Template.md` to a hotkey (like `Cmd + M` or `Ctrl + M`) for fast creation.
+    -   Set your **"Template folder location"** to the `templates` folder you just copied.
+    -   Set your **"Script files folder location"** to the `_templater_scripts` folder.
+    -   It is highly recommended to bind the `Lecture Note Template.md` to a hotkey (like `Cmd + M`) for fast creation.
 
 ---
 
@@ -53,5 +54,5 @@ It's built to be **fast**, **smart**, and **maintainable**, letting you focus on
 
 This project is the foundation of a larger system. Future planned additions include:
 
--   **Concept Note Template:** For creating atomic notes on single ideas (e.g., "Pointers," "Recursion").
--   **Subject Hub Template:** A dashboard note that will use the Dataview plugin to automatically organize all lecture and concept notes for a given course.
+-   **Concept Note Template:** For creating atomic notes on single ideas.
+-   **Subject Hub Template:** A dashboard note that will use Dataview to automatically organize all notes for a given course.
