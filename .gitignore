@@ -4,8 +4,11 @@
 # --- EXCEPTIONS ---
 # But DO include these specific project folders and files
 !_templater_scripts/
+!_templater_scripts/**
 !_templates/
+!_templates/**
 !README.md
 !.gitignore
+
 # Ignore macOS system files
 **/.DS_Store
