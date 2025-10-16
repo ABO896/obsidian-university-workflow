@@ -1,64 +1,79 @@
 <%*
 // --- 0. GET THE TARGET FILE & CONTEXT ---
 const currentFile = tp.config.target_file;
-const context = await tp.user.getUniversityContext(currentFile); // <-- CALLING YOUR NEW USER SCRIPT
-const subject = context.subject;
-const parcial = context.parcial;
+const context = await tp.user.getUniversityContext(currentFile);
+const { subject = "General", parcial = "General" } = context ?? {};
 
 // --- 1. VALIDATION ---
 if (!currentFile) {
-    new Notice("⛔️ Abort: Templater has no target file.", 10000);
-    return;
+  new Notice("⛔️ Abort: Templater has no target file.", 10_000);
+  return;
 }
+
 const basename = currentFile.basename.toLowerCase();
 if (!basename.startsWith("untitled") && !basename.startsWith("sin título")) {
-    new Notice("⛔️ Abort: Template must be run in a new 'Untitled' note.", 10000);
-    return;
+  new Notice("⛔️ Abort: Template must be run in a new 'Untitled' note.", 10_000);
+  return;
 }
 
 // --- 2. PROMPT FOR TOPIC & DEFINE NAME ---
 const date = tp.date.now("YYYY-MM-DD");
-const topic = await tp.system.prompt("Lecture Topic (optional)", "Untitled Topic");
+const topicInput = await tp.system.prompt("Lecture Topic (optional)");
+const safeTopic = topicInput?.trim() || "Untitled Topic";
 
-const safeTopic = topic ? topic : "Untitled Topic";
-const noteTitle = `Lecture ${date}${topic ? " - " + safeTopic : ""}`;
+const baseTitle = `Lecture ${date}`;
+const noteTitle = topicInput?.trim() ? `${baseTitle} - ${safeTopic}` : baseTitle;
+const headingTitle = topicInput?.trim() ? safeTopic : noteTitle;
 let newFileName = noteTitle;
-let i = 1;
+let suffix = 1;
 while (app.vault.getAbstractFileByPath(`${currentFile.parent.path}/${newFileName}.md`)) {
-    newFileName = `${noteTitle} (${i++})`;
+  newFileName = `${noteTitle} (${suffix++})`;
 }
 
 // --- 3. BUILD THE CONTENT ---
-const tag = subject.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "-");
-const safeAlias = topic ? topic.replace(/"/g, '\\"') : "Untitled Topic";
-const aliasLine = `aliases: ["${safeAlias}"]\n`;
-const h1Title = topic ? safeTopic : newFileName;
+const toSlug = (value = "") =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .toLowerCase();
 
-let content = "---\n";
-content += `course: ${subject}\n`;
-content += `parcial: ${parcial}\n`;
-content += `type: lecture\n`;
-content += `date: ${date}\n`;
-content += `status: draft\n`;
-content += `${aliasLine}`;
-content += "---\n";
-content += `#${tag} #lecture\n\n`;
-content += `# 🧠 ${h1Title}\n\n`; 
-content += `## 📜 Summary\n- \n\n`; 
-content += `## 📚 Definitions\n- `; 
-content += `\n\n## 🧩 Key Concepts\n- \n\n`;
-content += `## 💡 Examples or Code\n`;
+const subjectSlug = toSlug(subject);
+const lectureTags = [subjectSlug && `#${subjectSlug}`, "#lecture"].filter(Boolean).join(" ");
+const alias = JSON.stringify(headingTitle);
+
+const frontMatter = [
+  "---",
+  `course: ${JSON.stringify(subject)}`,
+  `parcial: ${JSON.stringify(parcial)}`,
+  "type: lecture",
+  `date: ${JSON.stringify(date)}`,
+  "status: draft",
+  `aliases: [${alias}]`,
+  "---",
+].join("\n");
+
+let content = `${frontMatter}\n`;
+content += lectureTags ? `${lectureTags}\n\n` : "";
+content += `# 🧠 ${headingTitle}\n\n`;
+content += "## 📜 Summary\n- [ ] Key takeaway 1\n- [ ] Key takeaway 2\n\n";
+content += "## 📚 Definitions\n- [ ] Term :: Definition\n\n";
+content += "## 🧩 Key Concepts\n- [ ] Concept :: Insight\n\n";
+content += "## 💡 Examples or Code\n";
 content += "```c\n";
-content += `// Code for: ${safeTopic}\n\n`;
+content += `// Code for: ${safeTopic}\n`;
 content += "```\n\n";
-content += `## 🧭 Explanation in My Own Words\n- \n\n`;
-content += `## 🔗 Connections\n- \n\n`;
-content += `## 🧠 Questions I Still Have\n- \n`;
+content += "## 🧭 Explanation in My Own Words\n- [ ] Insight\n\n";
+content += "## 🔗 Connections\n- [ ] Related topic\n\n";
+content += "## 🧠 Questions I Still Have\n- [ ] Open question\n";
 
 tR = content;
 
 // --- 4. SET CURSOR & RENAME FILE ---
-tp.file.cursor(); 
+tp.file.cursor();
 await tp.file.rename(newFileName);
-new Notice(`📘 Lecture created for ${subject}!`, 5000);
+new Notice(`📘 Lecture created for ${subject}!`, 5_000);
 %>
+
