@@ -2,7 +2,44 @@
 // --- 0. GET THE TARGET FILE & CONTEXT ---
 const currentFile = tp.config.target_file;
 const context = await tp.user.getUniversityContext(currentFile);
-const { subject = "General", parcial = "General" } = context ?? {};
+const { subject: contextSubject = "General", parcial: contextParcial = "General" } = context ?? {};
+
+const courseOptions = [
+  "Fundamentos de la Programacion",
+  "Matemáticas",
+  "Introducción a la Ciberseguridad",
+  "Pensamiento Social Cristiano",
+  "Inglés I",
+];
+
+const parcialOptions = ["General", "Parcial 1", "Parcial 2", "Parcial 3", "Final"];
+
+const reorderWithPreference = (options, preferred) => {
+  if (!preferred || preferred === "General") {
+    return options;
+  }
+
+  const normalizedPreferred = preferred.toLowerCase();
+  const index = options.findIndex((option) => option.toLowerCase() === normalizedPreferred);
+
+  if (index === -1) {
+    return [preferred, ...options];
+  }
+
+  return [options[index], ...options.filter((_, idx) => idx !== index)];
+};
+
+const selectedSubjectOptions = reorderWithPreference(courseOptions, contextSubject);
+const subject =
+  (await tp.system.suggester(selectedSubjectOptions, selectedSubjectOptions)) ??
+  contextSubject ??
+  "General";
+
+const selectedParcialOptions = reorderWithPreference(parcialOptions, contextParcial);
+const parcial =
+  (await tp.system.suggester(selectedParcialOptions, selectedParcialOptions)) ??
+  contextParcial ??
+  "General";
 
 // --- 1. VALIDATION ---
 if (!currentFile) {
