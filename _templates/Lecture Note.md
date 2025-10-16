@@ -4,78 +4,6 @@ const currentFile = tp.config.target_file;
 const context = await tp.user.getUniversityContext(currentFile);
 const { subject: contextSubject = "General", parcial: contextParcial = "General" } = context ?? {};
 
-const pathJoin = (...segments) =>
-  segments
-    .map((segment) => segment?.toString().trim())
-    .filter((segment) => segment && segment !== "/")
-    .join("/");
-
-const getBaseUniversityPath = (file) => {
-  const parentPath = file?.parent?.path ?? "";
-  if (!parentPath) {
-    return "Universidad";
-  }
-
-  const pathParts = parentPath.split("/").filter(Boolean);
-  const uniIndex = pathParts.indexOf("Universidad");
-
-  if (uniIndex === -1) {
-    return "Universidad";
-  }
-
-  return pathJoin(...pathParts.slice(0, uniIndex + 1));
-};
-
-const buildTargetFolder = (basePath, subject, parcial) => {
-  const segments = [basePath];
-
-  if (subject && subject !== "General") {
-    segments.push(subject);
-  }
-
-  if (parcial && parcial !== "General") {
-    segments.push(parcial);
-  }
-
-  return pathJoin(...segments);
-};
-
-const ensureFolderPath = async (folderPath) => {
-  if (!folderPath) {
-    return;
-  }
-
-  const segments = folderPath.split("/").filter(Boolean);
-  let cumulative = "";
-
-  for (const segment of segments) {
-    cumulative = cumulative ? `${cumulative}/${segment}` : segment;
-
-    if (!app.vault.getAbstractFileByPath(cumulative)) {
-      try {
-        await app.vault.createFolder(cumulative);
-      } catch (error) {
-        if (!app.vault.getAbstractFileByPath(cumulative)) {
-          console.error(`Templater: Failed to create folder ${cumulative}`, error);
-          new Notice(`⛔️ Could not create folder: ${cumulative}`, 10_000);
-          throw error;
-        }
-      }
-    }
-  }
-};
-
-const ensureUniqueFileName = (folderPath, baseName, extension = "md") => {
-  let candidate = baseName;
-  let suffix = 1;
-
-  while (app.vault.getAbstractFileByPath(`${folderPath}/${candidate}.${extension}`)) {
-    candidate = `${baseName} (${suffix++})`;
-  }
-
-  return candidate;
-};
-
 const courseOptions = [
   "Fundamentos de la Programacion",
   "Matemáticas",
@@ -112,10 +40,6 @@ const parcial =
   (await tp.system.suggester(selectedParcialOptions, selectedParcialOptions)) ??
   contextParcial ??
   "General";
-
-const baseUniversityPath = getBaseUniversityPath(currentFile);
-const targetFolder = buildTargetFolder(baseUniversityPath, subject, parcial);
-await ensureFolderPath(targetFolder);
 
 // --- 1. VALIDATION ---
 if (!currentFile) {
