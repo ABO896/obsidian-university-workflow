@@ -6,6 +6,21 @@ const {
   parcial: contextParcial = "General",
 } = context ?? {};
 
+const noteUtils = await tp.user.universityNoteUtils();
+const {
+  pathJoin,
+  getBaseUniversityPath,
+  getParcialContext,
+  ensureFolderPath,
+  ensureUniqueFileName,
+  sanitizeFolderName,
+} = noteUtils ?? {};
+
+if (!noteUtils) {
+  new Notice("⛔️ Abort: University note utilities are unavailable.", 10_000);
+  return;
+}
+
 const allCourses = [
   "Fundamentos de la Programacion",
   "Matemáticas",
@@ -44,6 +59,42 @@ const selectedSubject =
 const parcialOptions = reorderWithPreference(parcialOptionsBase, contextParcial);
 const selectedParcial =
   (await tp.system.suggester(parcialOptions, parcialOptions)) ?? contextParcial ?? "General";
+
+const baseUniversityPath = getBaseUniversityPath(currentFile);
+const subjectFolderName =
+  selectedSubject && selectedSubject !== "General" ? sanitizeFolderName(selectedSubject) : null;
+const parcialFolderName =
+  selectedParcial && selectedParcial !== "General" ? sanitizeFolderName(selectedParcial) : null;
+
+const { containerPath: parcialContainerPath } = getParcialContext(
+  baseUniversityPath,
+  subjectFolderName ?? undefined
+);
+
+let targetFolder = parcialContainerPath || baseUniversityPath;
+
+if (subjectFolderName && !(targetFolder?.includes(subjectFolderName))) {
+  targetFolder = pathJoin(baseUniversityPath, subjectFolderName);
+}
+
+if (parcialFolderName) {
+  targetFolder = pathJoin(targetFolder, parcialFolderName);
+}
+
+if (!targetFolder) {
+  targetFolder = baseUniversityPath;
+}
+
+await ensureFolderPath(targetFolder);
+
+const extension = currentFile?.extension ?? "md";
+const finalFileName = ensureUniqueFileName(targetFolder, currentFile?.basename ?? "Untitled", extension);
+const destinationPath = `${targetFolder}/${finalFileName}.${extension}`;
+const needsMove = currentFile?.path !== destinationPath;
+
+if (needsMove) {
+  await tp.file.move(destinationPath);
+}
 
 tR += [
   "---",
