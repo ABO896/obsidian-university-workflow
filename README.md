@@ -1,58 +1,99 @@
 # Obsidian University Workflow
 
-A modular Templater system for students. This project provides a set of powerful, context-aware templates and scripts to automate academic note-taking in Obsidian.
-
-It's designed to be dropped into any vault to provide a robust foundation for building a "second brain" for your studies.
+A modular collection of Obsidian Templater scripts and templates for university students. The toolkit automates file naming, metadata, and folder placement so you can focus on learning instead of note management.
 
 ---
 
-## ✨ Features
+## 📦 What's Included?
 
--   **✍️ Interactive Smart Naming:** Prompts for a lecture topic to create clear, scannable filenames like `Lecture 2025-10-16 - Intro to Pointers.md`.
--   **🗂️ Automatic Metadata:** Detects the `course` and `parcial` (exam period) from your folder structure and adds them to your note's properties.
--   **🚀 Frictionless Start:** The cursor is automatically placed where you need to start typing in a new note, saving you clicks and time.
--   **🔧 Modular & Maintainable:** Uses a central User Script (`getUniversityContext.js`) to handle all context detection, making the system easy to adapt and extend.
--   **🏛️ Structured for Deep Learning:** The note layout encourages processing and retention with dedicated sections for `Summary`, `Definitions`, `Key Concepts`, and `Explanation in My Own Words`.
-
----
-
-## ✅ Prerequisites
-
-This system assumes a basic folder structure for university notes. For the context detection to work, your lecture notes should be inside a path similar to this:
-`.../Universidad/[Subject Name]/[Parcial Name]/`
-
-You will also need the following installed in Obsidian:
-1.  **Templater Plugin:** The engine that runs all automation.
-2.  **Dataview Plugin:** Required for the upcoming "Subject Hub" dashboard template.
+```
+.
+├── _templater_scripts/
+│   ├── getUniversityContext.js   # Detects course & parcial from file location
+│   └── universityNoteUtils.js    # Helper utilities for folder discovery & file moves
+└── _templates/
+    ├── Concept Note Template.md  # Feynman-style concept capture template
+    ├── Lecture Note.md           # Smart lecture note workflow
+    └── Subject Hub.md            # Placeholder for course dashboards
+```
 
 ---
 
-## ⚙️ How to Install
+## ✨ Key Features
 
-1.  **Download:** Click the green "Code" button on this page and select "Download ZIP". Unzip the folder.
-2.  **Copy Scripts & Templates:**
-    -   Copy the `_templater_scripts` folder into the root of your Obsidian vault.
-    -   Copy the `templates` folder into the root of your Obsidian vault.
-3.  **Configure Templater:**
-    -   Go to **Settings -> Templater**.
-    -   Set your **"Template folder location"** to the `templates` folder you just copied.
-    -   Set your **"Script files folder location"** to the `_templater_scripts` folder.
-    -   It is highly recommended to bind the `Lecture Note Template.md` to a hotkey (like `Cmd + M`) for fast creation.
+- **Context-aware automation** – Detects the course (`subject`) and exam period (`parcial`) from your vault structure and injects them into frontmatter automatically.【F:_templater_scripts/getUniversityContext.js†L3-L25】
+- **Guided folder placement** – Ensures notes land in the correct subject/parcial folder, creating directories on demand and preventing duplicate filenames.【F:_templater_scripts/universityNoteUtils.js†L9-L121】
+- **Interactive setup** – Templater prompts let you create new subjects, pick parciales, and provide lecture topics as you create notes.【F:_templates/Lecture Note.md†L32-L87】【F:_templates/Concept Note Template.md†L31-L75】
+- **Learning-focused structures** – Templates nudge active recall with sections for summaries, key concepts, open questions, and Dataview-powered backlinks to related lectures.【F:_templates/Lecture Note.md†L97-L123】【F:_templates/Concept Note Template.md†L97-L133】
+- **Modular design** – Scripts are reusable across templates, making it simple to add your own note types while keeping behavior consistent.【F:_templater_scripts/universityNoteUtils.js†L1-L147】
 
 ---
 
-## 🚀 Workflow in Action
+## ✅ Requirements
 
-1.  Navigate to the correct folder for your lecture (e.g., `Universidad/Matemáticas/Parcial 1`).
-2.  Press your hotkey (`Cmd + M`).
-3.  A prompt will ask for the lecture topic. Type it in and press Enter.
-4.  A perfectly named and structured note is instantly created, with your cursor ready to go.
+- Obsidian v1.5 or newer.
+- [Templater](https://github.com/SilentVoid13/Templater) plugin (required).
+- [Dataview](https://github.com/blacksmithgu/obsidian-dataview) plugin (used in the Concept Note template and planned Subject Hub dashboards).
+
+This workflow assumes your academic notes live under a folder named `Universidad`, organised as `Universidad/<Subject>/<Parcial>/Note.md`. You can adapt this later—see [Customising the folder logic](#-customising-the-folder-logic).
 
 ---
 
-## 🔮 Roadmap
+## ⚙️ Installation
 
-This project is the foundation of a larger system. Future planned additions include:
+1. **Download the repository**
+   - Use the green **Code** button → **Download ZIP**, then extract it.
+2. **Copy the assets into your vault**
+   - Place `_templater_scripts/` and `_templates/` in the root of your Obsidian vault (or merge them with your existing folders of the same name).
+3. **Configure Templater**
+   - Settings → **Templater** → set **Template folder location** to `_templates`.
+   - Set **Script files folder location** to `_templater_scripts`.
+   - (Optional) Assign a hotkey to the **Lecture Note** template for rapid capture.
+4. **Reload commands** (Templater → **Reload templates**).
 
--   **Concept Note Template:** For creating atomic notes on single ideas.
--   **Subject Hub Template:** A dashboard note that will use Dataview to automatically organize all notes for a given course.
+---
+
+## 🚀 Using the Templates
+
+### Lecture Note
+1. Create a new note (leave the default name such as `Untitled`).
+2. Trigger the **Lecture Note** template via command palette or your hotkey.
+3. Choose the course and parcial when prompted (or create a new subject on the fly).
+4. Enter an optional lecture topic for smart file naming.
+5. The template renames and moves the note, adds metadata, inserts active-recall sections, and places your cursor at the summary block ready for input.【F:_templates/Lecture Note.md†L44-L126】
+
+### Concept Note
+1. Run the **Concept Note Template** from any concept draft.
+2. Pick or create the subject/parcial context via suggesters.
+3. The script relocates the file if needed and seeds the page with sections for definitions, analogies, explanations, and a Dataview query linking related lectures.【F:_templates/Concept Note Template.md†L31-L133】
+
+### Subject Hub
+- `Subject Hub.md` currently acts as a placeholder for Dataview dashboards. Duplicate it per subject and build out course summaries, progress trackers, or Kanban views to suit your workflow.
+
+---
+
+## 🛠 Customising the Folder Logic
+
+The helper script `universityNoteUtils.js` centralises file-placement rules. Key tweaks you can make:
+
+- **Change the base folder** – Update `DEFAULT_BASE_PATH` if you use a different top-level folder than `Universidad`.
+- **Custom parcial detection** – Adjust `getParcialContext` to recognise bespoke exam structures or add automatic folder generation for labs/projects.【F:_templater_scripts/universityNoteUtils.js†L9-L121】
+- **Subject discovery** – Modify `listSubjects` and related functions to surface folders from multiple roots or filter archived courses.【F:_templater_scripts/universityNoteUtils.js†L45-L70】
+
+After editing a script, run **Templater → Reload User Scripts** for the changes to take effect.
+
+---
+
+## 🤔 Troubleshooting
+
+- **Template aborts immediately** – Ensure you're running it inside a new note named `Untitled` (required so the script can safely rename it).【F:_templates/Lecture Note.md†L69-L84】
+- **Folders aren't created** – Verify Templater has file system access (Desktop app) and that `_templater_scripts` is correctly configured.
+- **Dataview results are empty** – Confirm the Dataview plugin is enabled and that your lecture notes carry the `#lecture` tag generated by the template.【F:_templates/Lecture Note.md†L108-L123】
+
+---
+
+## 🤝 Contributing
+
+Pull requests and feature ideas are welcome! Whether you want to add new templates, extend the Subject Hub dashboard, or support different academic structures, feel free to open an issue or PR.
+
+Happy studying! 📚
