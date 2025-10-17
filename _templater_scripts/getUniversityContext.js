@@ -21,8 +21,11 @@ function getUniversityContext(targetFile) {
   const subject =
     uniIndex !== -1 && pathParts[uniIndex + 1] ? pathParts[uniIndex + 1] : "General";
 
-  const parcial =
-    pathParts.find((part) => /^parcial/i.test(part?.toString())) ?? "General";
+  const searchParts = uniIndex === -1 ? pathParts : pathParts.slice(uniIndex + 1);
+  const parcialMatch = searchParts.find((part = "") =>
+    /^parcial(?:\s+\d+)?$/i.test(part) || /^final$/i.test(part)
+  );
+  const parcial = parcialMatch ?? "General";
 
   return { subject, parcial };
 }

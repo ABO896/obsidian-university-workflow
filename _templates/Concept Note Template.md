@@ -14,8 +14,8 @@ const {
   ensureFolderPath,
   ensureUniqueFileName,
   sanitizeFolderName,
-  listSubjects,
-  dedupePreserveOrder,
+  reorderOptions,
+  buildSubjectOptions,
 } = noteUtils ?? {};
 
 if (!noteUtils) {
@@ -31,29 +31,8 @@ const parcialOptionsBase = [
   "Final",
 ];
 
-const reorderWithPreference = (options, preferred) => {
-  if (!preferred || preferred === "General") {
-    return options;
-  }
-
-  const normalizedPreferred = preferred.toLowerCase();
-  const index = options.findIndex((option) => option.toLowerCase() === normalizedPreferred);
-
-  if (index === -1) {
-    return [preferred, ...options];
-  }
-
-  return [options[index], ...options.filter((_, idx) => idx !== index)];
-};
-
 const baseUniversityPath = getBaseUniversityPath(currentFile);
-const discoveredSubjects = listSubjects(baseUniversityPath);
-const subjectOptionPool = dedupePreserveOrder([
-  "General",
-  ...(contextSubject && contextSubject !== "General" ? [contextSubject] : []),
-  ...discoveredSubjects,
-]);
-const subjectOptions = reorderWithPreference(subjectOptionPool, contextSubject);
+const subjectOptions = buildSubjectOptions(baseUniversityPath, contextSubject);
 const NEW_SUBJECT_SENTINEL = "__new_subject__";
 const subjectSelection =
   (await tp.system.suggester(
@@ -70,7 +49,7 @@ if (subjectSelection === NEW_SUBJECT_SENTINEL) {
   selectedSubject = newSubjectInput?.trim() || contextSubject || "General";
 }
 
-const parcialOptions = reorderWithPreference(parcialOptionsBase, contextParcial);
+const parcialOptions = reorderOptions(parcialOptionsBase, contextParcial);
 const selectedParcial =
   (await tp.system.suggester(parcialOptions, parcialOptions)) ?? contextParcial ?? "General";
 
