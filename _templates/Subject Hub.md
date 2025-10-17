@@ -37,6 +37,7 @@ const placement = await resolveSubjectAndParcial(tp, {
   currentFile,
   contextSubject,
   contextParcial,
+  includeParcial: false,
 });
 
 const { subject, subjectRootPath, baseUniversityPath } = placement ?? {};
@@ -80,7 +81,6 @@ const frontMatter = [
   "type: subject-hub",
   `course: ${JSON.stringify(selectedSubject)}`,
   tagsLine,
-  "status: draft",
   `updated: ${JSON.stringify(updated)}`,
   "---",
   "",
