@@ -1,34 +1,150 @@
----
-type: concept
-tags: [concept]
-course: <%*
-const allCourses = [
-  "Fundamentos de la Programacion",
-  "Matemáticas",
-  "Introducción a la Ciberseguridad",
-  "Pensamiento Social Cristiano",
-  "Inglés I",
+<%*
+const currentFile = tp.config.target_file;
+const context = await tp.user.getUniversityContext(currentFile);
+const {
+  subject: contextSubject = "General",
+  parcial: contextParcial = "General",
+} = context ?? {};
+
+const utils = await tp.user.universityNoteUtils();
+const {
+  pathJoin,
+  getBaseUniversityPath,
+  listSubjects,
+  getParcialContext,
+  ensureFolderPath,
+  ensureUniqueFileName,
+  dedupePreserveOrder,
+  sortCaseInsensitive,
+  sanitizeFolderName,
+} = utils;
+
+const baseUniversityPath = getBaseUniversityPath(currentFile);
+
+const prioritizeOption = (options, preferred) => {
+  if (!preferred || preferred === "General") {
+    return options;
+  }
+
+  const index = options.findIndex((option) => option.toLowerCase() === preferred.toLowerCase());
+  if (index === -1) {
+    return options;
+  }
+
+  const reordered = [...options];
+  const [match] = reordered.splice(index, 1);
+  return [match, ...reordered];
+};
+
+const createSubjectOption = "➕ Create new subject";
+const existingSubjects = listSubjects(baseUniversityPath);
+let subjectOptions = dedupePreserveOrder([
+  ...(contextSubject && contextSubject !== "General" ? [contextSubject] : []),
+  ...existingSubjects,
+]);
+
+subjectOptions = subjectOptions
+  .filter((name) => name.toLowerCase() !== "general")
+  .map((name) => name.trim())
+  .filter(Boolean);
+
+subjectOptions = [
+  "General",
+  ...prioritizeOption(sortCaseInsensitive(subjectOptions), contextSubject),
+  createSubjectOption,
 ];
 
-const context = await tp.user.getUniversityContext(tp.config.target_file);
-const suggestedCourse = context?.subject;
+let selectedSubject =
+  (await tp.system.suggester(subjectOptions, subjectOptions)) ?? contextSubject ?? "General";
 
-let finalCourses = allCourses;
-if (suggestedCourse && suggestedCourse !== "General" && allCourses.includes(suggestedCourse)) {
-  finalCourses = [suggestedCourse, ...allCourses.filter((course) => course !== suggestedCourse)];
+if (selectedSubject === createSubjectOption) {
+  const newSubject = await tp.system.prompt("Subject name");
+  selectedSubject = newSubject?.trim() || "General";
 }
 
-const selection = await tp.system.suggester(finalCourses, finalCourses);
-tR += `${selection ?? "General"}`;
+selectedSubject = sanitizeFolderName(selectedSubject) || "General";
+
+const { containerName: parcialesFolderName, existingParcials } =
+  getParcialContext(baseUniversityPath, selectedSubject);
+
+const defaultParcials = ["Parcial 1", "Parcial 2", "Parcial 3", "Parcial 4", "Final"];
+const createParcialOption = "➕ Create new parcial";
+let parcialOptions = dedupePreserveOrder([
+  ...(contextParcial && contextParcial !== "General" ? [contextParcial] : []),
+  ...existingParcials,
+  ...defaultParcials,
+]);
+
+parcialOptions = parcialOptions
+  .filter((name) => name.toLowerCase() !== "general")
+  .map((name) => name.trim())
+  .filter(Boolean);
+
+parcialOptions = [
+  "General",
+  ...prioritizeOption(sortCaseInsensitive(parcialOptions), contextParcial),
+  createParcialOption,
+];
+
+let selectedParcial =
+  (await tp.system.suggester(parcialOptions, parcialOptions)) ?? contextParcial ?? "General";
+
+if (selectedParcial === createParcialOption) {
+  const newParcial = await tp.system.prompt("Parcial name");
+  selectedParcial = newParcial?.trim() || "General";
+}
+
+selectedParcial = sanitizeFolderName(selectedParcial) || "General";
+
+const destinationSegments = [baseUniversityPath];
+
+if (selectedSubject && selectedSubject !== "General") {
+  destinationSegments.push(selectedSubject);
+}
+
+if (selectedParcial && selectedParcial !== "General") {
+  if (parcialesFolderName) {
+    destinationSegments.push(parcialesFolderName);
+  }
+
+  destinationSegments.push(selectedParcial);
+}
+
+const targetFolder = pathJoin(...destinationSegments);
+await ensureFolderPath(targetFolder);
+
+const extension = currentFile?.extension ?? "md";
+const baseName = currentFile?.basename ?? "Untitled";
+const uniqueName = ensureUniqueFileName(targetFolder, baseName, extension);
+const desiredPath = `${targetFolder}/${uniqueName}.${extension}`;
+const needsMove =
+  currentFile?.parent?.path !== targetFolder || (currentFile?.basename ?? "") !== uniqueName;
+
+tR += [
+  "---",
+  "type: concept",
+  "tags: [concept]",
+  `course: ${JSON.stringify(selectedSubject)}`,
+  `parcial: ${JSON.stringify(selectedParcial)}`,
+  "status: draft",
+  "---",
+  "",
+].join("\n");
+
+if (needsMove) {
+  await tp.file.move(desiredPath);
+  new Notice(`🧠 Concept stored in ${targetFolder}`, 5_000);
+}
 %>
-status: draft
----
 
 # 💡 <% tp.file.title %>
 
 ## 📜 Definition
 *A formal, textbook-style definition of the concept.*
-- <% tp.file.cursor() %>
+<%*
+tR += "- ";
+tp.file.cursor();
+%>
 
 ## 🧠 Analogy or Metaphor
 *How can I explain this concept using a simple, real-world analogy?*
