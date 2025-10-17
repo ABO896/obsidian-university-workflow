@@ -199,6 +199,87 @@ function universityNoteUtils() {
     return name?.toString().replace(/[\\/:*?"<>|]/g, "-").trim() ?? "";
   }
 
+  async function resolveSubjectAndParcial(tp, {
+    currentFile,
+    contextSubject = "General",
+    contextParcial = "General",
+    parcialOptions: parcialOptionsInput,
+    allowNewSubject = true,
+  } = {}) {
+    if (!tp) {
+      throw new Error("Templater API (tp) is required to resolve placement.");
+    }
+
+    const parcialOptionsBase =
+      parcialOptionsInput ?? ["General", "Parcial 1", "Parcial 2", "Parcial 3", "Final"];
+
+    const baseUniversityPath = getBaseUniversityPath(currentFile);
+    const subjectOptions = buildSubjectOptions(baseUniversityPath, contextSubject);
+    const NEW_SUBJECT_SENTINEL = "__new_subject__";
+
+    let subjectSelection = contextSubject ?? "General";
+
+    if (allowNewSubject || subjectOptions.length > 0) {
+      const displayOptions = allowNewSubject
+        ? [...subjectOptions, "➕ Create new subject"]
+        : subjectOptions;
+      const valueOptions = allowNewSubject
+        ? [...subjectOptions, NEW_SUBJECT_SENTINEL]
+        : subjectOptions;
+
+      subjectSelection =
+        (await tp.system.suggester(displayOptions, valueOptions)) ?? contextSubject ?? "General";
+    }
+
+    let subject = subjectSelection;
+
+    if (subjectSelection === NEW_SUBJECT_SENTINEL) {
+      const newSubjectInput = await tp.system.prompt("Name for the new subject");
+      subject = newSubjectInput?.trim() || contextSubject || "General";
+    }
+
+    const parcialOptions = reorderWithPreference(parcialOptionsBase, contextParcial);
+    const parcial =
+      (await tp.system.suggester(parcialOptions, parcialOptions)) ?? contextParcial ?? "General";
+
+    const subjectFolderName = subject && subject !== "General" ? sanitizeFolderName(subject) : null;
+    const parcialFolderName = parcial && parcial !== "General" ? sanitizeFolderName(parcial) : null;
+
+    const { containerPath: parcialContainerPath } = getParcialContext(
+      baseUniversityPath,
+      subjectFolderName ?? undefined
+    );
+
+    let targetFolder = parcialContainerPath || baseUniversityPath;
+
+    if (subjectFolderName && !(targetFolder?.includes(subjectFolderName))) {
+      targetFolder = pathJoin(baseUniversityPath, subjectFolderName);
+    }
+
+    if (parcialFolderName) {
+      targetFolder = pathJoin(targetFolder, parcialFolderName);
+    }
+
+    if (!targetFolder) {
+      targetFolder = baseUniversityPath;
+    }
+
+    const subjectRootPath = subjectFolderName
+      ? pathJoin(baseUniversityPath, subjectFolderName)
+      : baseUniversityPath;
+
+    return {
+      baseUniversityPath,
+      subject,
+      subjectFolderName,
+      subjectRootPath,
+      parcial,
+      parcialFolderName,
+      parcialOptions,
+      targetFolder,
+    };
+  }
+
   return {
     DEFAULT_BASE_PATH,
     pathJoin,
@@ -214,6 +295,7 @@ function universityNoteUtils() {
     reorderWithPreference,
     reorderOptions: reorderWithPreference,
     buildSubjectOptions,
+    resolveSubjectAndParcial,
   };
 }
 
