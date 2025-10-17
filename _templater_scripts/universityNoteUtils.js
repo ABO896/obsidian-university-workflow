@@ -82,6 +82,32 @@ function universityNoteUtils() {
     return sortCaseInsensitive(dedupePreserveOrder(listImmediateFolderNames(basePath)));
   }
 
+  function reorderWithPreference(options = [], preferred = "General") {
+    if (!preferred || preferred === "General") {
+      return options;
+    }
+
+    const normalizedPreferred = preferred.toLowerCase();
+    const index = options.findIndex((option) => option.toLowerCase() === normalizedPreferred);
+
+    if (index === -1) {
+      return [preferred, ...options];
+    }
+
+    return [options[index], ...options.filter((_, idx) => idx !== index)];
+  }
+
+  function buildSubjectOptions(basePath, preferredSubject, listSubjectsFn = listSubjects) {
+    const discoveredSubjects = listSubjectsFn(basePath);
+    const pool = dedupePreserveOrder([
+      "General",
+      ...(preferredSubject && preferredSubject !== "General" ? [preferredSubject] : []),
+      ...discoveredSubjects,
+    ]);
+
+    return reorderWithPreference(pool, preferredSubject);
+  }
+
   function findParcialesContainer(path) {
     const subjectFolder = getFolder(path);
     if (!subjectFolder) {
@@ -169,6 +195,10 @@ function universityNoteUtils() {
     return name?.toString().replace(/[\\/]/g, "-").trim() ?? "";
   }
 
+  function sanitizeFileName(name) {
+    return name?.toString().replace(/[\\/:*?"<>|]/g, "-").trim() ?? "";
+  }
+
   return {
     DEFAULT_BASE_PATH,
     pathJoin,
@@ -180,6 +210,10 @@ function universityNoteUtils() {
     dedupePreserveOrder,
     sortCaseInsensitive,
     sanitizeFolderName,
+    sanitizeFileName,
+    reorderWithPreference,
+    reorderOptions: reorderWithPreference,
+    buildSubjectOptions,
   };
 }
 

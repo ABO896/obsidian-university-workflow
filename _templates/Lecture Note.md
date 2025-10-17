@@ -12,8 +12,9 @@ const {
   ensureFolderPath,
   ensureUniqueFileName,
   sanitizeFolderName,
-  listSubjects,
-  dedupePreserveOrder,
+  sanitizeFileName,
+  reorderOptions,
+  buildSubjectOptions,
 } = noteUtils ?? {};
 
 if (!noteUtils) {
@@ -23,29 +24,8 @@ if (!noteUtils) {
 
 const parcialOptions = ["General", "Parcial 1", "Parcial 2", "Parcial 3", "Final"];
 
-const reorderWithPreference = (options, preferred) => {
-  if (!preferred || preferred === "General") {
-    return options;
-  }
-
-  const normalizedPreferred = preferred.toLowerCase();
-  const index = options.findIndex((option) => option.toLowerCase() === normalizedPreferred);
-
-  if (index === -1) {
-    return [preferred, ...options];
-  }
-
-  return [options[index], ...options.filter((_, idx) => idx !== index)];
-};
-
 const baseUniversityPath = getBaseUniversityPath(currentFile);
-const discoveredSubjects = listSubjects(baseUniversityPath);
-const subjectOptionPool = dedupePreserveOrder([
-  "General",
-  ...(contextSubject && contextSubject !== "General" ? [contextSubject] : []),
-  ...discoveredSubjects,
-]);
-const selectedSubjectOptions = reorderWithPreference(subjectOptionPool, contextSubject);
+const selectedSubjectOptions = buildSubjectOptions(baseUniversityPath, contextSubject);
 const NEW_SUBJECT_SENTINEL = "__new_subject__";
 const subjectSelection =
   (await tp.system.suggester(
@@ -62,7 +42,7 @@ if (subjectSelection === NEW_SUBJECT_SENTINEL) {
   subject = newSubjectInput?.trim() || contextSubject || "General";
 }
 
-const selectedParcialOptions = reorderWithPreference(parcialOptions, contextParcial);
+const selectedParcialOptions = reorderOptions(parcialOptions, contextParcial);
 const parcial =
   (await tp.system.suggester(selectedParcialOptions, selectedParcialOptions)) ??
   contextParcial ??
@@ -107,11 +87,12 @@ if (!basename.startsWith("untitled") && !basename.startsWith("sin título")) {
 // --- 2. PROMPT FOR TOPIC & DEFINE NAME ---
 const date = tp.date.now("YYYY-MM-DD");
 const topicInput = await tp.system.prompt("Lecture Topic (optional)");
-const safeTopic = topicInput?.trim() || "Untitled Topic";
+const rawTopic = topicInput?.trim();
+const safeTopic = sanitizeFileName(rawTopic) || "Untitled Topic";
 
-const baseTitle = `Lecture ${date}`;
-const noteTitle = topicInput?.trim() ? `${baseTitle} - ${safeTopic}` : baseTitle;
-const headingTitle = topicInput?.trim() ? safeTopic : noteTitle;
+const baseTitle = sanitizeFileName(`Lecture ${date}`);
+const noteTitle = rawTopic ? sanitizeFileName(`${baseTitle} - ${safeTopic}`) : baseTitle;
+const headingTitle = rawTopic ? safeTopic : noteTitle;
 const extension = currentFile?.extension ?? "md";
 const finalFileName = ensureUniqueFileName(targetFolder, noteTitle, extension);
 const destinationPath = `${targetFolder}/${finalFileName}.${extension}`;
@@ -166,4 +147,3 @@ if (needsMove) {
 }
 new Notice(`📘 Lecture stored in ${targetFolder}`, 5_000);
 %>
-
