@@ -14,20 +14,14 @@ const {
   ensureFolderPath,
   ensureUniqueFileName,
   sanitizeFolderName,
+  listSubjects,
+  dedupePreserveOrder,
 } = noteUtils ?? {};
 
 if (!noteUtils) {
   new Notice("⛔️ Abort: University note utilities are unavailable.", 10_000);
   return;
 }
-
-const allCourses = [
-  "Fundamentos de la Programacion",
-  "Matemáticas",
-  "Introducción a la Ciberseguridad",
-  "Pensamiento Social Cristiano",
-  "Inglés I",
-];
 
 const parcialOptionsBase = [
   "General",
@@ -52,15 +46,34 @@ const reorderWithPreference = (options, preferred) => {
   return [options[index], ...options.filter((_, idx) => idx !== index)];
 };
 
-const subjectOptions = reorderWithPreference(allCourses, contextSubject);
-const selectedSubject =
-  (await tp.system.suggester(subjectOptions, subjectOptions)) ?? contextSubject ?? "General";
+const baseUniversityPath = getBaseUniversityPath(currentFile);
+const discoveredSubjects = listSubjects(baseUniversityPath);
+const subjectOptionPool = dedupePreserveOrder([
+  "General",
+  ...(contextSubject && contextSubject !== "General" ? [contextSubject] : []),
+  ...discoveredSubjects,
+]);
+const subjectOptions = reorderWithPreference(subjectOptionPool, contextSubject);
+const NEW_SUBJECT_SENTINEL = "__new_subject__";
+const subjectSelection =
+  (await tp.system.suggester(
+    [...subjectOptions, "➕ Create new subject"],
+    [...subjectOptions, NEW_SUBJECT_SENTINEL]
+  )) ??
+  contextSubject ??
+  "General";
+
+let selectedSubject = subjectSelection;
+
+if (subjectSelection === NEW_SUBJECT_SENTINEL) {
+  const newSubjectInput = await tp.system.prompt("Name for the new subject");
+  selectedSubject = newSubjectInput?.trim() || contextSubject || "General";
+}
 
 const parcialOptions = reorderWithPreference(parcialOptionsBase, contextParcial);
 const selectedParcial =
   (await tp.system.suggester(parcialOptions, parcialOptions)) ?? contextParcial ?? "General";
 
-const baseUniversityPath = getBaseUniversityPath(currentFile);
 const subjectFolderName =
   selectedSubject && selectedSubject !== "General" ? sanitizeFolderName(selectedSubject) : null;
 const parcialFolderName =
