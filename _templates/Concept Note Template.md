@@ -6,119 +6,44 @@ const {
   parcial: contextParcial = "General",
 } = context ?? {};
 
-const utils = await tp.user.universityNoteUtils();
-const {
-  pathJoin,
-  getBaseUniversityPath,
-  listSubjects,
-  getParcialContext,
-  ensureFolderPath,
-  ensureUniqueFileName,
-  dedupePreserveOrder,
-  sortCaseInsensitive,
-  sanitizeFolderName,
-} = utils;
+const allCourses = [
+  "Fundamentos de la Programacion",
+  "Matemáticas",
+  "Introducción a la Ciberseguridad",
+  "Pensamiento Social Cristiano",
+  "Inglés I",
+];
 
-const baseUniversityPath = getBaseUniversityPath(currentFile);
+const parcialOptionsBase = [
+  "General",
+  "Parcial 1",
+  "Parcial 2",
+  "Parcial 3",
+  "Final",
+];
 
-const prioritizeOption = (options, preferred) => {
+const reorderWithPreference = (options, preferred) => {
   if (!preferred || preferred === "General") {
     return options;
   }
 
-  const index = options.findIndex((option) => option.toLowerCase() === preferred.toLowerCase());
+  const normalizedPreferred = preferred.toLowerCase();
+  const index = options.findIndex((option) => option.toLowerCase() === normalizedPreferred);
+
   if (index === -1) {
-    return options;
+    return [preferred, ...options];
   }
 
-  const reordered = [...options];
-  const [match] = reordered.splice(index, 1);
-  return [match, ...reordered];
+  return [options[index], ...options.filter((_, idx) => idx !== index)];
 };
 
-const createSubjectOption = "➕ Create new subject";
-const existingSubjects = listSubjects(baseUniversityPath);
-let subjectOptions = dedupePreserveOrder([
-  ...(contextSubject && contextSubject !== "General" ? [contextSubject] : []),
-  ...existingSubjects,
-]);
-
-subjectOptions = subjectOptions
-  .filter((name) => name.toLowerCase() !== "general")
-  .map((name) => name.trim())
-  .filter(Boolean);
-
-subjectOptions = [
-  "General",
-  ...prioritizeOption(sortCaseInsensitive(subjectOptions), contextSubject),
-  createSubjectOption,
-];
-
-let selectedSubject =
+const subjectOptions = reorderWithPreference(allCourses, contextSubject);
+const selectedSubject =
   (await tp.system.suggester(subjectOptions, subjectOptions)) ?? contextSubject ?? "General";
 
-if (selectedSubject === createSubjectOption) {
-  const newSubject = await tp.system.prompt("Subject name");
-  selectedSubject = newSubject?.trim() || "General";
-}
-
-selectedSubject = sanitizeFolderName(selectedSubject) || "General";
-
-const { containerName: parcialesFolderName, existingParcials } =
-  getParcialContext(baseUniversityPath, selectedSubject);
-
-const defaultParcials = ["Parcial 1", "Parcial 2", "Parcial 3", "Parcial 4", "Final"];
-const createParcialOption = "➕ Create new parcial";
-let parcialOptions = dedupePreserveOrder([
-  ...(contextParcial && contextParcial !== "General" ? [contextParcial] : []),
-  ...existingParcials,
-  ...defaultParcials,
-]);
-
-parcialOptions = parcialOptions
-  .filter((name) => name.toLowerCase() !== "general")
-  .map((name) => name.trim())
-  .filter(Boolean);
-
-parcialOptions = [
-  "General",
-  ...prioritizeOption(sortCaseInsensitive(parcialOptions), contextParcial),
-  createParcialOption,
-];
-
-let selectedParcial =
+const parcialOptions = reorderWithPreference(parcialOptionsBase, contextParcial);
+const selectedParcial =
   (await tp.system.suggester(parcialOptions, parcialOptions)) ?? contextParcial ?? "General";
-
-if (selectedParcial === createParcialOption) {
-  const newParcial = await tp.system.prompt("Parcial name");
-  selectedParcial = newParcial?.trim() || "General";
-}
-
-selectedParcial = sanitizeFolderName(selectedParcial) || "General";
-
-const destinationSegments = [baseUniversityPath];
-
-if (selectedSubject && selectedSubject !== "General") {
-  destinationSegments.push(selectedSubject);
-}
-
-if (selectedParcial && selectedParcial !== "General") {
-  if (parcialesFolderName) {
-    destinationSegments.push(parcialesFolderName);
-  }
-
-  destinationSegments.push(selectedParcial);
-}
-
-const targetFolder = pathJoin(...destinationSegments);
-await ensureFolderPath(targetFolder);
-
-const extension = currentFile?.extension ?? "md";
-const baseName = currentFile?.basename ?? "Untitled";
-const uniqueName = ensureUniqueFileName(targetFolder, baseName, extension);
-const desiredPath = `${targetFolder}/${uniqueName}.${extension}`;
-const needsMove =
-  currentFile?.parent?.path !== targetFolder || (currentFile?.basename ?? "") !== uniqueName;
 
 tR += [
   "---",
@@ -130,11 +55,6 @@ tR += [
   "---",
   "",
 ].join("\n");
-
-if (needsMove) {
-  await tp.file.move(desiredPath);
-  new Notice(`🧠 Concept stored in ${targetFolder}`, 5_000);
-}
 %>
 
 # 💡 <% tp.file.title %>
