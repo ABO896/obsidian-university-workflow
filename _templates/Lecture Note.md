@@ -4,6 +4,21 @@ const currentFile = tp.config.target_file;
 const context = await tp.user.getUniversityContext(currentFile);
 const { subject: contextSubject = "General", parcial: contextParcial = "General" } = context ?? {};
 
+const noteUtils = await tp.user.universityNoteUtils();
+const {
+  pathJoin,
+  getBaseUniversityPath,
+  getParcialContext,
+  ensureFolderPath,
+  ensureUniqueFileName,
+  sanitizeFolderName,
+} = noteUtils ?? {};
+
+if (!noteUtils) {
+  new Notice("⛔️ Abort: University note utilities are unavailable.", 10_000);
+  return;
+}
+
 const courseOptions = [
   "Fundamentos de la Programacion",
   "Matemáticas",
@@ -40,6 +55,31 @@ const parcial =
   (await tp.system.suggester(selectedParcialOptions, selectedParcialOptions)) ??
   contextParcial ??
   "General";
+
+const baseUniversityPath = getBaseUniversityPath(currentFile);
+const subjectFolderName = subject && subject !== "General" ? sanitizeFolderName(subject) : null;
+const parcialFolderName = parcial && parcial !== "General" ? sanitizeFolderName(parcial) : null;
+
+const { containerPath: parcialContainerPath } = getParcialContext(
+  baseUniversityPath,
+  subjectFolderName ?? undefined
+);
+
+let targetFolder = parcialContainerPath || baseUniversityPath;
+
+if (subjectFolderName && !(targetFolder?.includes(subjectFolderName))) {
+  targetFolder = pathJoin(baseUniversityPath, subjectFolderName);
+}
+
+if (parcialFolderName) {
+  targetFolder = pathJoin(targetFolder, parcialFolderName);
+}
+
+if (!targetFolder) {
+  targetFolder = baseUniversityPath;
+}
+
+await ensureFolderPath(targetFolder);
 
 // --- 1. VALIDATION ---
 if (!currentFile) {
