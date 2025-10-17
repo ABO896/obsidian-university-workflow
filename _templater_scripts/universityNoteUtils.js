@@ -205,13 +205,11 @@ function universityNoteUtils() {
     contextParcial = "General",
     parcialOptions: parcialOptionsInput,
     allowNewSubject = true,
+    includeParcial = true,
   } = {}) {
     if (!tp) {
       throw new Error("Templater API (tp) is required to resolve placement.");
     }
-
-    const parcialOptionsBase =
-      parcialOptionsInput ?? ["General", "Parcial 1", "Parcial 2", "Parcial 3", "Final"];
 
     const baseUniversityPath = getBaseUniversityPath(currentFile);
     const subjectOptions = buildSubjectOptions(baseUniversityPath, contextSubject);
@@ -238,35 +236,45 @@ function universityNoteUtils() {
       subject = newSubjectInput?.trim() || contextSubject || "General";
     }
 
-    const parcialOptions = reorderWithPreference(parcialOptionsBase, contextParcial);
-    const parcial =
-      (await tp.system.suggester(parcialOptions, parcialOptions)) ?? contextParcial ?? "General";
-
     const subjectFolderName = subject && subject !== "General" ? sanitizeFolderName(subject) : null;
-    const parcialFolderName = parcial && parcial !== "General" ? sanitizeFolderName(parcial) : null;
-
-    const { containerPath: parcialContainerPath } = getParcialContext(
-      baseUniversityPath,
-      subjectFolderName ?? undefined
-    );
-
-    let targetFolder = parcialContainerPath || baseUniversityPath;
-
-    if (subjectFolderName && !(targetFolder?.includes(subjectFolderName))) {
-      targetFolder = pathJoin(baseUniversityPath, subjectFolderName);
-    }
-
-    if (parcialFolderName) {
-      targetFolder = pathJoin(targetFolder, parcialFolderName);
-    }
-
-    if (!targetFolder) {
-      targetFolder = baseUniversityPath;
-    }
-
     const subjectRootPath = subjectFolderName
       ? pathJoin(baseUniversityPath, subjectFolderName)
       : baseUniversityPath;
+
+    let parcialOptions = [];
+    let parcial = includeParcial ? contextParcial ?? "General" : null;
+    let parcialFolderName = null;
+    let targetFolder = subjectRootPath;
+
+    if (includeParcial) {
+      const parcialOptionsBase =
+        parcialOptionsInput ?? ["General", "Parcial 1", "Parcial 2", "Parcial 3", "Final"];
+
+      parcialOptions = reorderWithPreference(parcialOptionsBase, contextParcial);
+      parcial =
+        (await tp.system.suggester(parcialOptions, parcialOptions)) ?? contextParcial ?? "General";
+
+      parcialFolderName = parcial && parcial !== "General" ? sanitizeFolderName(parcial) : null;
+
+      const { containerPath: parcialContainerPath } = getParcialContext(
+        baseUniversityPath,
+        subjectFolderName ?? undefined
+      );
+
+      targetFolder = parcialContainerPath || baseUniversityPath;
+
+      if (subjectFolderName && !(targetFolder?.includes(subjectFolderName))) {
+        targetFolder = pathJoin(baseUniversityPath, subjectFolderName);
+      }
+
+      if (parcialFolderName) {
+        targetFolder = pathJoin(targetFolder, parcialFolderName);
+      }
+
+      if (!targetFolder) {
+        targetFolder = baseUniversityPath;
+      }
+    }
 
     return {
       baseUniversityPath,
