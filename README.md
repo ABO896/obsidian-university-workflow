@@ -14,11 +14,12 @@ This vault pack supplies a set of opinionated Obsidian Templater assets for mana
 - **Context-aware defaults.** `getUniversityContext` infers subject/parcial from the current path to seed prompts with sensible defaults when launching a template from an existing folder.【F:_templater_scripts/getUniversityContext.js†L3-L25】
 - **Lecture note workflow.** Guided prompts choose subject/parcial, create new subjects, and compose lecture-focused frontmatter, tags, and recall checklists in one run.【F:_templates/Lecture Note.md†L32-L126】
 - **Concept note workflow.** Builds concept notes with Feynman-style prompts and a Dataview backlink query while relocating files to the proper subject/parcial folder.【F:_templates/Concept Note Template.md†L29-L133】
+- **General note workflow.** Leaves a clean canvas with consistent metadata so you can paste external study guides or ad-hoc material without deleting pre-filled sections.【F:_templates/General Note.md†L1-L140】
 - **Subject hub dashboard.** Skips parcial selection, anchors hubs at the subject root, and renders Dataview tables for lectures, concepts, parciales, and tasks.【F:_templates/Subject Hub.md†L29-L143】
 - **Filename sanitization.** Removes illegal characters, slugifies headings, and appends numeric suffixes to avoid conflicts when notes move into their destination directories.【F:_templater_scripts/universityNoteUtils.js†L113-L171】【F:_templates/Lecture Note.md†L82-L115】
 
 ## Repository Layout
-- `_templates/` – Obsidian Templater markdown templates for lectures, concept notes, and subject hubs. Each template handles prompts, metadata, and Dataview sections tailored to the note type.【F:_templates/Lecture Note.md†L1-L126】【F:_templates/Concept Note Template.md†L1-L133】【F:_templates/Subject Hub.md†L1-L143】
+- `_templates/` – Obsidian Templater markdown templates for lectures, concept notes, general notes, and subject hubs. Each template handles prompts, metadata, and Dataview sections tailored to the note type.【F:_templates/Lecture Note.md†L1-L126】【F:_templates/Concept Note Template.md†L1-L133】【F:_templates/General Note.md†L1-L140】【F:_templates/Subject Hub.md†L1-L143】
 - `_templater_scripts/` – Shared JavaScript helpers invoked through `tp.user.*`, including context detection and folder utilities used by every template.【F:_templater_scripts/getUniversityContext.js†L3-L25】【F:_templater_scripts/universityNoteUtils.js†L9-L171】
 - `AGENTS.md` – Contributor guidance for Codex-powered assistants outlining allowed edit locations and expectations.【F:AGENTS.md†L1-L7】
 - `.gitignore` – Ignores personal vault content by default so only the reusable templates and scripts remain under version control.【F:.gitignore†L1-L14】
@@ -49,6 +50,11 @@ This vault pack supplies a set of opinionated Obsidian Templater assets for mana
 1. Trigger **Concept Note Template** from a draft or untitled note in any location.
 2. Choose or create the subject and parcial when prompted; the script sanitizes folder names, ensures the target directory exists, and moves the note if needed.【F:_templates/Concept Note Template.md†L29-L97】
 3. Fill in the guided sections covering formal definitions, analogies, and explanations. A Dataview query automatically lists lectures tagged for the same concept once they exist.【F:_templates/Concept Note Template.md†L101-L133】
+
+### General Note template
+1. Launch **General Note** when you need a blank canvas with metadata; the helper lets you keep working even if you start from a pre-named draft.【F:_templates/General Note.md†L65-L108】
+2. Select or create the subject and parcial, then provide a title so the file is moved into the correct course/parcial folder with sanitized naming.【F:_templates/General Note.md†L21-L104】
+3. Paste or write freely below the inserted frontmatter and subject/general tags—the cursor lands at the blank space ready for content.【F:_templates/General Note.md†L114-L129】
 
 ### Subject Hub template
 1. Launch **Subject Hub** from an untitled note when you need a course dashboard; the helper enforces the untitled guard to protect existing pages.【F:_templates/Subject Hub.md†L21-L41】
