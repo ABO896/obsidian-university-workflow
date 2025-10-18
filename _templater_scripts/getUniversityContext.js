@@ -5,8 +5,19 @@
   from the current file's location inside the vault.
 */
 
-const getUniversityConfig = require("./universityConfig.js");
-const createUniversityNoteUtils = require("./universityNoteUtils");
+const path = require("path");
+
+function requireScript(scriptFile) {
+  const vaultBasePath = app?.vault?.adapter?.basePath;
+  if (!vaultBasePath) {
+    throw new Error("Unable to resolve vault base path to load user scripts.");
+  }
+
+  return require(path.join(vaultBasePath, "_templater_scripts", scriptFile));
+}
+
+const getUniversityConfig = requireScript("universityConfig.js");
+const createUniversityNoteUtils = requireScript("universityNoteUtils.js");
 
 const universityConfig = getUniversityConfig();
 const configLabels = universityConfig?.labels ?? {};
