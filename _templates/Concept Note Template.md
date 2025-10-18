@@ -1,10 +1,9 @@
 <%*
 const currentFile = tp.config.target_file;
 const context = await tp.user.getUniversityContext(currentFile);
-const {
-  subject: contextSubject = "General",
-  parcial: contextParcial = "General",
-} = context ?? {};
+const getConfig = tp.user.universityConfig;
+const config = typeof getConfig === "function" ? await getConfig() : null;
+const configLabels = config?.labels ?? {};
 
 const noteUtils = await tp.user.universityNoteUtils();
 const {
@@ -12,6 +11,7 @@ const {
   ensureUniqueFileName,
   normalizeParcial,
   resolveSubjectParcialTema,
+  constants = {},
 } = noteUtils ?? {};
 
 if (!noteUtils) {
@@ -24,23 +24,32 @@ if (!resolveSubjectParcialTema) {
   return;
 }
 
+const generalLabel = constants?.general ?? configLabels.general;
+if (!generalLabel) {
+  new Notice("⛔️ Abort: University general label is not configured.", 10_000);
+  return;
+}
+const contextSubject = context?.subject ?? generalLabel;
+const contextParcialBase = context?.parcial ?? generalLabel;
+const contextParcial = normalizeParcial ? normalizeParcial(contextParcialBase) : contextParcialBase;
+
 const placement = await resolveSubjectParcialTema(tp, {
   currentFile,
   contextSubject,
   contextParcial,
-  contextTema: "General",
+  contextTema: generalLabel,
 });
 
 const {
   targetFolder,
-  subject: resolvedSubject = "General",
-  parcial: resolvedParcial = "General",
-  tema: resolvedTema = "General",
+  subject: resolvedSubject = generalLabel,
+  parcial: resolvedParcial = generalLabel,
+  tema: resolvedTema = generalLabel,
 } = placement ?? {};
 
-const selectedSubject = resolvedSubject || "General";
+const selectedSubject = resolvedSubject || generalLabel;
 const selectedParcial = normalizeParcial(resolvedParcial);
-const selectedTema = resolvedTema?.toString().trim() || "General";
+const selectedTema = resolvedTema?.toString().trim() || generalLabel;
 
 if (!targetFolder) {
   new Notice("⛔️ Abort: Could not determine destination folder.", 10_000);
@@ -100,7 +109,7 @@ tp.file.cursor();
 
 ```dataviewjs
 const concept = dv.current();
-const targetCourse = concept.course ?? "General";
+const targetCourse = concept.course ?? <%* tR += JSON.stringify(generalLabel); %>;
 const targetName = (concept.file?.name ?? "").toLowerCase();
 const targetPath = concept.file?.path ?? "";
 
@@ -109,7 +118,7 @@ const sortValue = (page) => page.created ?? page.date ?? page.file?.ctime;
 
 const matches = dv
   .pages("")
-  .where((page) => (page.course ?? "General") === targetCourse)
+  .where((page) => (page.course ?? <%* tR += JSON.stringify(generalLabel); %>) === targetCourse)
   .where((page) => allowedTypes.has((page.type ?? "").toLowerCase()))
   .where((page) => {
     const concepts = Array.isArray(page.concepts) ? page.concepts : [];

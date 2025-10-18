@@ -5,27 +5,51 @@
   from the current file's location inside the vault.
 */
 
+const getUniversityConfig = require("./universityConfig");
+const createUniversityNoteUtils = require("./universityNoteUtils");
+
+const universityConfig = getUniversityConfig();
+const configLabels = universityConfig?.labels ?? {};
+const configFs = universityConfig?.fs ?? {};
+
+const GENERAL_LABEL =
+  configLabels.general ??
+  (Array.isArray(universityConfig?.parciales)
+    ? universityConfig.parciales.find((value) => /general/i.test(value))
+    : undefined);
+
+if (!GENERAL_LABEL) {
+  throw new Error("University config must define a general label.");
+}
+
+const UNIVERSITY_ROOT = configFs.universityRoot;
+
+if (!UNIVERSITY_ROOT) {
+  throw new Error("University config must define fs.universityRoot.");
+}
+
+const { normalizeParcial } = createUniversityNoteUtils();
+
 function getUniversityContext(targetFile) {
   if (!targetFile) {
-    return { subject: "General", parcial: "General" };
+    return { subject: GENERAL_LABEL, parcial: GENERAL_LABEL };
   }
 
   const parentPath = targetFile.parent?.path ?? "";
   if (!parentPath) {
-    return { subject: "General", parcial: "General" };
+    return { subject: GENERAL_LABEL, parcial: GENERAL_LABEL };
   }
 
   const pathParts = parentPath.split("/").filter(Boolean);
+  const universityRootLower = UNIVERSITY_ROOT.toLowerCase();
+  const uniIndex = pathParts.findIndex((part = "") => part.toLowerCase() === universityRootLower);
 
-  const uniIndex = pathParts.indexOf("Universidad");
   const subject =
-    uniIndex !== -1 && pathParts[uniIndex + 1] ? pathParts[uniIndex + 1] : "General";
+    uniIndex !== -1 && pathParts[uniIndex + 1] ? pathParts[uniIndex + 1] : GENERAL_LABEL;
 
   const searchParts = uniIndex === -1 ? pathParts : pathParts.slice(uniIndex + 1);
-  const parcialMatch = searchParts.find((part = "") =>
-    /^parcial(?:\s+\d+)?$/i.test(part) || /^final$/i.test(part)
-  );
-  const parcial = parcialMatch ?? "General";
+  const parcialCandidate = searchParts.find((part = "") => normalizeParcial(part) !== GENERAL_LABEL);
+  const parcial = normalizeParcial(parcialCandidate);
 
   return { subject, parcial };
 }

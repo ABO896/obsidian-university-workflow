@@ -6,8 +6,58 @@
   current vault structure and provide filesystem utilities for moving notes.
 */
 
+const getUniversityConfig = require("./universityConfig");
+
 function universityNoteUtils() {
-  const DEFAULT_BASE_PATH = "Universidad";
+  const config = getUniversityConfig();
+  if (!config || typeof config !== "object") {
+    throw new Error("University config is required to use note utilities.");
+  }
+
+  const fsConfig = config.fs ?? {};
+  const labels = config.labels ?? {};
+  const parciales = Array.isArray(config.parciales) ? [...config.parciales] : [];
+  const schema = config.schema ?? {};
+
+  if (!labels.general) {
+    throw new Error("University config must define labels.general.");
+  }
+
+  if (!fsConfig.universityRoot) {
+    throw new Error("University config must define fs.universityRoot.");
+  }
+
+  if (!fsConfig.parcialContainer) {
+    throw new Error("University config must define fs.parcialContainer.");
+  }
+
+  if (!fsConfig.temaContainer) {
+    throw new Error("University config must define fs.temaContainer.");
+  }
+
+  if (parciales.length === 0) {
+    throw new Error("University config must define at least one parcial value.");
+  }
+
+  const GENERAL_LABEL = labels.general;
+  const FINAL_LABEL = labels.final ?? parciales.find((value) => /final/i.test(value)) ?? labels.general;
+  const SUBJECT_LABEL = labels.subject ?? "Subject";
+  const TEMA_LABEL = labels.tema ?? "Tema";
+  const PARCIAL_LABEL = labels.parcial ?? "Parcial";
+
+  const DEFAULT_BASE_PATH = fsConfig.universityRoot;
+  const PARCIAL_CONTAINER_NAME = fsConfig.parcialContainer;
+  const TEMA_CONTAINER_NAME = fsConfig.temaContainer;
+
+  const canonicalParcialesMap = new Map();
+  for (const entry of parciales) {
+    if (!entry) {
+      continue;
+    }
+
+    const lowered = entry.toString().toLowerCase();
+    canonicalParcialesMap.set(lowered, entry);
+  }
 
   function pathJoin(...segments) {
     return segments
@@ -82,8 +132,8 @@ function universityNoteUtils() {
     return sortCaseInsensitive(dedupePreserveOrder(listImmediateFolderNames(basePath)));
   }
 
-  function reorderWithPreference(options = [], preferred = "General") {
-    if (!preferred || preferred === "General") {
+  function reorderWithPreference(options = [], preferred = GENERAL_LABEL) {
+    if (!preferred || preferred === GENERAL_LABEL) {
       return options;
     }
 
@@ -100,8 +150,8 @@ function universityNoteUtils() {
   function buildSubjectOptions(basePath, preferredSubject, listSubjectsFn = listSubjects) {
     const discoveredSubjects = listSubjectsFn(basePath);
     const pool = dedupePreserveOrder([
-      "General",
-      ...(preferredSubject && preferredSubject !== "General" ? [preferredSubject] : []),
+      GENERAL_LABEL,
+      ...(preferredSubject && preferredSubject !== GENERAL_LABEL ? [preferredSubject] : []),
       ...discoveredSubjects,
     ]);
 
@@ -114,9 +164,19 @@ function universityNoteUtils() {
       return { container: null, containerName: null };
     }
 
-    const parcialesFolder = subjectFolder.children?.find(
-      (child) => isFolder(child) && /^parciales?$/i.test(child.name ?? "")
-    );
+    const desiredNameLower = (PARCIAL_CONTAINER_NAME ?? "").toLowerCase();
+    const parcialesFolder = subjectFolder.children?.find((child) => {
+      if (!isFolder(child)) {
+        return false;
+      }
+
+      const childName = child.name ?? "";
+      if (desiredNameLower && childName.toLowerCase() === desiredNameLower) {
+        return true;
+      }
+
+      return /^parciales?$/i.test(childName);
+    });
 
     if (parcialesFolder) {
       return { container: parcialesFolder, containerName: parcialesFolder.name };
@@ -127,15 +187,15 @@ function universityNoteUtils() {
 
   function getParcialContext(basePath, subject) {
     const subjectPath =
-      subject && subject !== "General" ? pathJoin(basePath, subject) : basePath;
+      subject && subject !== GENERAL_LABEL ? pathJoin(basePath, subject) : basePath;
 
     let { container, containerName } = findParcialesContainer(subjectPath);
     let containerPath;
 
     if (container) {
       containerPath = container.path;
-    } else if (subject && subject !== "General") {
-      containerName = "Parciales";
+    } else if (subject && subject !== GENERAL_LABEL) {
+      containerName = PARCIAL_CONTAINER_NAME;
       containerPath = pathJoin(subjectPath, containerName);
     } else {
       containerPath = subjectPath;
@@ -152,7 +212,17 @@ function universityNoteUtils() {
 
   function getTemaContext(basePath, subjectFolderName, parcialFolderName) {
     const subjectPath = subjectFolderName ? pathJoin(basePath, subjectFolderName) : basePath;
-    let temaContainerPath = subjectPath;
+
+    const resolveTemaContainer = (basePathForTemas) => {
+      if (!TEMA_CONTAINER_NAME) {
+        return basePathForTemas;
+      }
+
+      const desiredPath = pathJoin(basePathForTemas, TEMA_CONTAINER_NAME);
+      return getFolder(desiredPath) ? desiredPath : basePathForTemas;
+    };
+
+    let temaContainerPath = resolveTemaContainer(subjectPath);
 
     if (parcialFolderName) {
       const { containerPath: parcialContainerPath } = getParcialContext(
@@ -160,7 +230,8 @@ function universityNoteUtils() {
         subjectFolderName ?? undefined
       );
       const parcialPath = parcialContainerPath || subjectPath;
-      temaContainerPath = pathJoin(parcialPath, parcialFolderName);
+      const parcialFolderPath = pathJoin(parcialPath, parcialFolderName);
+      temaContainerPath = resolveTemaContainer(parcialFolderPath);
     }
 
     const existingTemas = listImmediateFolderNames(temaContainerPath);
@@ -234,36 +305,40 @@ function universityNoteUtils() {
   function normalizeParcial(parcial) {
     const value = parcial?.toString().trim();
     if (!value) {
-      return "General";
+      return GENERAL_LABEL;
     }
 
     const lowered = value.toLowerCase();
 
-    if (lowered === "general") {
-      return "General";
+    if (canonicalParcialesMap.has(lowered)) {
+      return canonicalParcialesMap.get(lowered) ?? GENERAL_LABEL;
     }
 
-    if (lowered === "final") {
-      return "Final";
+    if (lowered === FINAL_LABEL.toLowerCase()) {
+      return canonicalParcialesMap.get(FINAL_LABEL.toLowerCase()) ?? FINAL_LABEL;
     }
 
-    const parcialMatch = lowered.match(/parcial\s*(\d)/);
+    const parcialMatch = lowered.match(/parcial[\s_-]*(\d)/);
     if (parcialMatch) {
-      const parcialNumber = parcialMatch[1];
-      if (["1", "2", "3"].includes(parcialNumber)) {
-        return `Parcial ${parcialNumber}`;
+      const normalizedKey = `parcial ${parcialMatch[1]}`.toLowerCase();
+      if (canonicalParcialesMap.has(normalizedKey)) {
+        return canonicalParcialesMap.get(normalizedKey) ?? GENERAL_LABEL;
       }
     }
 
-    return "General";
+    if (lowered === GENERAL_LABEL.toLowerCase()) {
+      return GENERAL_LABEL;
+    }
+
+    return GENERAL_LABEL;
   }
 
   async function resolveSubjectAndParcial(
     tp,
     {
       currentFile,
-      contextSubject = "General",
-      contextParcial = "General",
+      contextSubject = GENERAL_LABEL,
+      contextParcial = GENERAL_LABEL,
       parcialOptions: parcialOptionsInput,
       allowNewSubject = true,
       includeParcial = true,
@@ -274,49 +349,54 @@ function universityNoteUtils() {
     }
 
     const baseUniversityPath = getBaseUniversityPath(currentFile);
-    const subjectOptions = buildSubjectOptions(baseUniversityPath, contextSubject);
+    const normalizedContextSubject = contextSubject ?? GENERAL_LABEL;
+    const subjectOptions = buildSubjectOptions(baseUniversityPath, normalizedContextSubject);
     const NEW_SUBJECT_SENTINEL = "__new_subject__";
+    const subjectLabelLower =
+      typeof SUBJECT_LABEL === "string" ? SUBJECT_LABEL.toLowerCase() : "subject";
 
-    let subjectSelection = contextSubject ?? "General";
+    let subjectSelection = normalizedContextSubject;
 
     if (allowNewSubject || subjectOptions.length > 0) {
       const displayOptions = allowNewSubject
-        ? [...subjectOptions, "➕ Create new subject"]
+        ? [...subjectOptions, `➕ Create new ${subjectLabelLower}`]
         : subjectOptions;
       const valueOptions = allowNewSubject
         ? [...subjectOptions, NEW_SUBJECT_SENTINEL]
         : subjectOptions;
 
       subjectSelection =
-        (await tp.system.suggester(displayOptions, valueOptions)) ?? contextSubject ?? "General";
+        (await tp.system.suggester(displayOptions, valueOptions)) ?? normalizedContextSubject;
     }
 
     let subject = subjectSelection;
 
     if (subjectSelection === NEW_SUBJECT_SENTINEL) {
-      const newSubjectInput = await tp.system.prompt("Name for the new subject");
-      subject = newSubjectInput?.trim() || contextSubject || "General";
+      const newSubjectInput = await tp.system.prompt(`Name for the new ${SUBJECT_LABEL}`);
+      subject = newSubjectInput?.trim() || normalizedContextSubject;
     }
 
-    const subjectFolderName = subject && subject !== "General" ? sanitizeFolderName(subject) : null;
+    const subjectFolderName =
+      subject && subject !== GENERAL_LABEL ? sanitizeFolderName(subject) : null;
     const subjectRootPath = subjectFolderName
       ? pathJoin(baseUniversityPath, subjectFolderName)
       : baseUniversityPath;
 
     let parcialOptions = [];
-    let parcial = includeParcial ? contextParcial ?? "General" : null;
+    let parcial = includeParcial ? normalizeParcial(contextParcial) : null;
     let parcialFolderName = null;
     let targetFolder = subjectRootPath;
 
     if (includeParcial) {
-      const parcialOptionsBase =
-        parcialOptionsInput ?? ["General", "Parcial 1", "Parcial 2", "Parcial 3", "Final"];
+      const parcialOptionsBase = parcialOptionsInput ?? parciales;
 
-      parcialOptions = reorderWithPreference(parcialOptionsBase, contextParcial);
-      parcial =
-        (await tp.system.suggester(parcialOptions, parcialOptions)) ?? contextParcial ?? "General";
+      parcialOptions = reorderWithPreference(parcialOptionsBase, normalizeParcial(contextParcial));
+      parcial = normalizeParcial(
+        (await tp.system.suggester(parcialOptions, parcialOptions)) ?? contextParcial
+      );
 
-      parcialFolderName = parcial && parcial !== "General" ? sanitizeFolderName(parcial) : null;
+      parcialFolderName =
+        parcial && parcial !== GENERAL_LABEL ? sanitizeFolderName(parcial) : null;
 
       const { containerPath: parcialContainerPath } = getParcialContext(
         baseUniversityPath,
@@ -355,7 +435,7 @@ function universityNoteUtils() {
     {
       includeParcial = true,
       includeTema = true,
-      contextTema = "General",
+      contextTema = GENERAL_LABEL,
       allowNewTema = true,
       ...rest
     } = {}
@@ -394,45 +474,48 @@ function universityNoteUtils() {
     const SKIP_TEMA_SENTINEL = "__skip_tema__";
 
     const baseTemaOptions = dedupePreserveOrder([
-      "General",
-      contextTema && contextTema !== "General" ? contextTema : null,
+      GENERAL_LABEL,
+      contextTema && contextTema !== GENERAL_LABEL ? contextTema : null,
       ...existingTemas,
     ]).filter(Boolean);
 
-    let temaSelection = contextTema ?? "General";
+    const temaLabelLower =
+      typeof TEMA_LABEL === "string" ? TEMA_LABEL.toLowerCase() : "tema";
+
+    let temaSelection = contextTema ?? GENERAL_LABEL;
 
     if (allowNewTema || baseTemaOptions.length > 0) {
       const displayOptions = [...baseTemaOptions];
       const valueOptions = [...baseTemaOptions];
 
       if (allowNewTema) {
-        displayOptions.push("➕ Create new tema");
+        displayOptions.push(`➕ Create new ${temaLabelLower}`);
         valueOptions.push(NEW_TEMA_SENTINEL);
       }
 
-      displayOptions.push("🚫 Skip tema");
+      displayOptions.push(`🚫 Skip ${temaLabelLower}`);
       valueOptions.push(SKIP_TEMA_SENTINEL);
 
       temaSelection =
-        (await tp.system.suggester(displayOptions, valueOptions, "Select tema")) ??
+        (await tp.system.suggester(displayOptions, valueOptions, `Select ${TEMA_LABEL}`)) ??
         contextTema ??
-        "General";
+        GENERAL_LABEL;
     }
 
     let tema = temaSelection;
 
     if (temaSelection === NEW_TEMA_SENTINEL) {
-      const newTemaInput = await tp.system.prompt("Name for the new tema");
-      tema = newTemaInput?.trim() || contextTema || "General";
+      const newTemaInput = await tp.system.prompt(`Name for the new ${TEMA_LABEL}`);
+      tema = newTemaInput?.trim() || contextTema || GENERAL_LABEL;
     } else if (temaSelection === SKIP_TEMA_SENTINEL) {
-      tema = "General";
+      tema = GENERAL_LABEL;
     }
 
     if (!tema) {
-      tema = "General";
+      tema = GENERAL_LABEL;
     }
 
-    const temaFolderName = tema && tema !== "General" ? sanitizeFolderName(tema) : null;
+    const temaFolderName = tema && tema !== GENERAL_LABEL ? sanitizeFolderName(tema) : null;
     const targetFolder = temaFolderName
       ? pathJoin(temaContainerPath, temaFolderName)
       : temaContainerPath;
@@ -447,7 +530,24 @@ function universityNoteUtils() {
     };
   }
 
+  const constants = {
+    general: GENERAL_LABEL,
+    final: FINAL_LABEL,
+    subject: SUBJECT_LABEL,
+    tema: TEMA_LABEL,
+    parcial: PARCIAL_LABEL,
+    universityRoot: DEFAULT_BASE_PATH,
+    parcialContainer: PARCIAL_CONTAINER_NAME,
+    temaContainer: TEMA_CONTAINER_NAME,
+  };
+
   return {
+    config,
+    fsConfig,
+    labels,
+    parciales,
+    schema,
+    constants,
     DEFAULT_BASE_PATH,
     pathJoin,
     getBaseUniversityPath,

@@ -6,8 +6,12 @@ if (!currentFile) {
 }
 
 const context = await tp.user.getUniversityContext(currentFile);
-const { subject: contextSubject = "General", parcial: contextParcial = "General" } = context ?? {};
-const contextTema = tp.frontmatter.tema ?? "General";
+const getConfig = tp.user.universityConfig;
+const config = typeof getConfig === "function" ? await getConfig() : null;
+const configLabels = config?.labels ?? {};
+
+const { subject: contextSubjectRaw, parcial: contextParcialRaw } = context ?? {};
+const contextTemaRaw = tp.frontmatter.tema;
 
 const noteUtils = await tp.user.universityNoteUtils();
 const {
@@ -15,12 +19,23 @@ const {
   toSlug,
   normalizeParcial,
   resolveSubjectParcialTema,
+  constants = {},
 } = noteUtils ?? {};
 
 if (!noteUtils || !resolveSubjectParcialTema) {
   new Notice("⛔️ Abort: Placement helper unavailable.", 10_000);
   return;
 }
+
+const generalLabel = constants?.general ?? configLabels.general;
+if (!generalLabel) {
+  new Notice("⛔️ Abort: University general label is not configured.", 10_000);
+  return;
+}
+const contextTema = contextTemaRaw ?? generalLabel;
+const contextSubject = contextSubjectRaw ?? generalLabel;
+const contextParcialBase = contextParcialRaw ?? generalLabel;
+const contextParcial = normalizeParcial ? normalizeParcial(contextParcialBase) : contextParcialBase;
 
 const placement = await resolveSubjectParcialTema(tp, {
   currentFile,
@@ -36,9 +51,9 @@ if (!placement) {
 
 const {
   targetFolder,
-  subject: resolvedSubject = "General",
-  parcial: resolvedParcial = "General",
-  tema: resolvedTema = "General",
+  subject: resolvedSubject = generalLabel,
+  parcial: resolvedParcial = generalLabel,
+  tema: resolvedTema = generalLabel,
 } = placement;
 
 if (!targetFolder) {
@@ -49,8 +64,8 @@ if (!targetFolder) {
 await ensureFolderPath(targetFolder);
 
 const normalizedParcial = normalizeParcial(resolvedParcial);
-const tema = resolvedTema?.toString().trim() || "General";
-const subject = resolvedSubject || "General";
+const tema = resolvedTema?.toString().trim() || generalLabel;
+const subject = resolvedSubject || generalLabel;
 
 const extension = currentFile.extension ?? "md";
 const destinationPath = `${targetFolder}/${currentFile.basename}.${extension}`;
