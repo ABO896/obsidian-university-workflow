@@ -5,7 +5,7 @@
   from the current file's location inside the vault.
 */
 
-const getUniversityConfig = require("./universityConfig");
+const getUniversityConfig = require("./universityConfig.js");
 const createUniversityNoteUtils = require("./universityNoteUtils");
 
 const universityConfig = getUniversityConfig();
