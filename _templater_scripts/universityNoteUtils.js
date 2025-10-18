@@ -6,7 +6,18 @@
   current vault structure and provide filesystem utilities for moving notes.
 */
 
-const getUniversityConfig = require("./universityConfig.js");
+const path = require("path");
+
+function requireScript(scriptFile) {
+  const vaultBasePath = app?.vault?.adapter?.basePath;
+  if (!vaultBasePath) {
+    throw new Error("Unable to resolve vault base path to load user scripts.");
+  }
+
+  return require(path.join(vaultBasePath, "_templater_scripts", scriptFile));
+}
+
+const getUniversityConfig = requireScript("universityConfig.js");
 
 function universityNoteUtils() {
   const config = getUniversityConfig();
