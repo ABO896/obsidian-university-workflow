@@ -6,7 +6,7 @@
   current vault structure and provide filesystem utilities for moving notes.
 */
 
-const getUniversityConfig = require("./universityConfig");
+const getUniversityConfig = require("./universityConfig.js");
 
 function universityNoteUtils() {
   const config = getUniversityConfig();
