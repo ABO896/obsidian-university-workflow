@@ -1,7 +1,10 @@
 <%*
 const currentFile = tp.config.target_file;
 const context = await tp.user.getUniversityContext(currentFile);
-const { subject: contextSubject = "General", parcial: contextParcial = "General" } = context ?? {};
+const getConfig = tp.user.universityConfig;
+const config = typeof getConfig === "function" ? await getConfig() : null;
+const configLabels = config?.labels ?? {};
+const configFs = config?.fs ?? {};
 
 const noteUtils = await tp.user.universityNoteUtils();
 
@@ -16,6 +19,10 @@ const {
   ensureFolderPath,
   resolveSubjectAndParcial,
   toSlug,
+  normalizeParcial,
+  labels: helperLabels,
+  constants = {},
+  fsConfig: helperFsConfig,
 } = noteUtils ?? {};
 
 if (!resolveSubjectAndParcial) {
@@ -34,6 +41,41 @@ if (!basename.startsWith("untitled") && !basename.startsWith("sin título")) {
   return;
 }
 
+const generalLabel = constants?.general ?? configLabels.general;
+if (!generalLabel) {
+  new Notice("⛔️ Abort: University general label is not configured.", 10_000);
+  return;
+}
+const labels = helperLabels ?? configLabels;
+const fsConfig = helperFsConfig ?? configFs;
+const parcialLabel = labels?.parcial ?? "Parcial";
+const temaLabel = labels?.tema ?? "Tema";
+const parcialContainerName =
+  constants?.parcialContainer ??
+  fsConfig?.parcialContainer ??
+  configFs?.parcialContainer ??
+  (typeof parcialLabel === "string" ? `${parcialLabel}s` : parcialLabel);
+const temaContainerName =
+  constants?.temaContainer ??
+  fsConfig?.temaContainer ??
+  configFs?.temaContainer ??
+  (typeof temaLabel === "string" ? `${temaLabel}s` : temaLabel);
+const temaPluralDisplay =
+  typeof temaContainerName === "string" && temaContainerName?.trim()
+    ? temaContainerName
+    : typeof temaLabel === "string"
+    ? `${temaLabel}s`
+    : temaLabel;
+const noCourseNotesText = "No course notes yet.";
+const temaPluralLower =
+  typeof temaPluralDisplay === "string" ? temaPluralDisplay.toLowerCase() : "temas";
+const noTemasMessage = `No ${temaPluralLower} recorded yet.`;
+
+const contextSubject = context?.subject ?? generalLabel;
+const contextParcial = normalizeParcial
+  ? normalizeParcial(context?.parcial ?? generalLabel)
+  : context?.parcial ?? generalLabel;
+
 const placement = await resolveSubjectAndParcial(tp, {
   currentFile,
   contextSubject,
@@ -50,11 +92,11 @@ if (!targetRoot) {
   return;
 }
 
-const selectedSubject = subject || "General";
+const selectedSubject = subject || generalLabel;
 
 await ensureFolderPath(targetRoot);
 
-const subjectSlug = toSlug(selectedSubject || "General");
+const subjectSlug = toSlug(selectedSubject || generalLabel);
 const courseTag = subjectSlug ? `course/${subjectSlug}` : null;
 
 const displayTitle = `${selectedSubject} Hub`;
@@ -86,9 +128,14 @@ lines.push("- [ ] Course summary");
 lines.push("- [ ] Key resources");
 lines.push("- [ ] Upcoming priorities");
 lines.push("");
+const generalLiteral = JSON.stringify(generalLabel);
+const parcialColumnLabel = JSON.stringify(parcialLabel);
+const temaIndexTitle = `${temaContainerName} Index`;
+const parcialesToTemasTitle = `${parcialContainerName} → ${temaContainerName}`;
+
 lines.push("## 📘 Lectures");
 lines.push("```dataview");
-lines.push('TABLE default(created, date, file.ctime) AS "Created", default(parcial, "General") AS "Parcial"');
+lines.push(`TABLE default(created, date, file.ctime) AS "Created", default(parcial, ${generalLiteral}) AS ${parcialColumnLabel}`);
 lines.push('FROM ""');
 lines.push('WHERE course = this.course AND type = "lecture"');
 lines.push('SORT default(created, date, file.ctime) DESC');
@@ -102,36 +149,36 @@ lines.push('WHERE course = this.course AND type = "concept"');
 lines.push('SORT default(created, date, file.ctime) DESC');
 lines.push("```");
 lines.push("");
-lines.push("## 🗂️ Notes by Parcial");
+lines.push(`## 🗂️ Notes by ${parcialLabel}`);
 lines.push("```dataview");
 lines.push('TABLE WITHOUT ID rows.file.link AS "Notes"');
 lines.push('FROM ""');
 lines.push('WHERE course = this.course AND contains(["lecture", "concept", "general"], type)');
-lines.push('GROUP BY default(parcial, "General")');
+lines.push(`GROUP BY default(parcial, ${generalLiteral})`);
 lines.push('SORT key ASC');
 lines.push("```");
 lines.push("");
-lines.push("## 🧭 Parciales → Temas");
+lines.push(`## 🧭 ${parcialesToTemasTitle}`);
 lines.push("```dataviewjs");
 lines.push(String.raw`const current = dv.current();
-const targetCourse = current.course ?? "General";
+const targetCourse = current.course ?? ${generalLiteral};
 const allowedTypes = new Set(["lecture", "concept", "general"]);
 const getSortValue = (page) => page.created ?? page.date ?? page.file?.ctime;
 
 const pages = dv
   .pages("")
-  .where((page) => (page.course ?? "General") === targetCourse)
+  .where((page) => (page.course ?? ${generalLiteral}) === targetCourse)
   .where((page) => allowedTypes.has((page.type ?? "").toLowerCase()))
   .array();
 
 if (pages.length === 0) {
-  dv.paragraph("No course notes yet.");
+  dv.paragraph(${JSON.stringify(noCourseNotesText)});
 } else {
   const groupMap = new Map();
 
   for (const page of pages) {
-    const parcialKey = (page.parcial ?? "General") || "General";
-    const temaKey = (page.tema ?? "General") || "General";
+    const parcialKey = (page.parcial ?? ${generalLiteral}) || ${generalLiteral};
+    const temaKey = (page.tema ?? ${generalLiteral}) || ${generalLiteral};
     const entry = { page, parcialKey, temaKey };
     if (!groupMap.has(parcialKey)) {
       groupMap.set(parcialKey, []);
@@ -144,7 +191,7 @@ if (pages.length === 0) {
   );
 
   for (const parcialKey of parcialKeys) {
-    dv.header(3, "Parcial: " + parcialKey);
+    dv.header(3, ${JSON.stringify(`${parcialLabel}: `)} + parcialKey);
     const entries = groupMap.get(parcialKey) ?? [];
     const temaMap = new Map();
 
@@ -170,18 +217,18 @@ if (pages.length === 0) {
 }`);
 lines.push("```");
 lines.push("");
-lines.push("## 🗒️ Temas Index");
+lines.push(`## 🗒️ ${temaIndexTitle}`);
 lines.push("```dataviewjs");
-lines.push(String.raw`const targetCourse = dv.current().course ?? "General";
+lines.push(String.raw`const targetCourse = dv.current().course ?? ${generalLiteral};
 const allowedTypes = new Set(["lecture", "concept", "general"]);
 const temasPages = dv
   .pages("")
-  .where((page) => (page.course ?? "General") === targetCourse)
+  .where((page) => (page.course ?? ${generalLiteral}) === targetCourse)
   .where((page) => allowedTypes.has((page.type ?? "").toLowerCase()))
   .array();
 
 const temaSet = new Set(
-  temasPages.map((page) => (page.tema ?? "General") || "General")
+  temasPages.map((page) => (page.tema ?? ${generalLiteral}) || ${generalLiteral})
 );
 
 const temaList = Array.from(temaSet).sort((a, b) =>
@@ -189,7 +236,7 @@ const temaList = Array.from(temaSet).sort((a, b) =>
 );
 
 if (temaList.length === 0) {
-  dv.paragraph("No temas recorded yet.");
+  dv.paragraph(${JSON.stringify(noTemasMessage)});
 } else {
   dv.list(temaList);
 }`);

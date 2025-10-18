@@ -1,8 +1,11 @@
 <%*
 // --- 0. GET THE TARGET FILE & CONTEXT ---
 const currentFile = tp.config.target_file;
+const getConfig = tp.user.universityConfig;
+const config = typeof getConfig === "function" ? await getConfig() : null;
+const configLabels = config?.labels ?? {};
+
 const context = await tp.user.getUniversityContext(currentFile);
-const { subject: contextSubject = "General", parcial: contextParcial = "General" } = context ?? {};
 
 const noteUtils = await tp.user.universityNoteUtils();
 const {
@@ -12,6 +15,7 @@ const {
   toSlug,
   normalizeParcial,
   resolveSubjectParcialTema,
+  constants = {},
 } = noteUtils ?? {};
 
 if (!noteUtils) {
@@ -24,23 +28,32 @@ if (!resolveSubjectParcialTema) {
   return;
 }
 
+const generalLabel = constants?.general ?? configLabels.general;
+if (!generalLabel) {
+  new Notice("⛔️ Abort: University general label is not configured.", 10_000);
+  return;
+}
+const contextSubject = context?.subject ?? generalLabel;
+const contextParcialBase = context?.parcial ?? generalLabel;
+const contextParcial = normalizeParcial ? normalizeParcial(contextParcialBase) : contextParcialBase;
+
 const placement = await resolveSubjectParcialTema(tp, {
   currentFile,
   contextSubject,
   contextParcial,
-  contextTema: "General",
+  contextTema: generalLabel,
 });
 
 const {
   targetFolder,
-  subject: resolvedSubject = "General",
-  parcial: resolvedParcial = "General",
-  tema: resolvedTema = "General",
+  subject: resolvedSubject = generalLabel,
+  parcial: resolvedParcial = generalLabel,
+  tema: resolvedTema = generalLabel,
 } = placement ?? {};
 
-const subject = resolvedSubject || "General";
+const subject = resolvedSubject || generalLabel;
 const parcial = normalizeParcial(resolvedParcial);
-const tema = resolvedTema?.toString().trim() || "General";
+const tema = resolvedTema?.toString().trim() || generalLabel;
 
 if (!targetFolder) {
   new Notice("⛔️ Abort: Could not determine destination folder.", 10_000);
