@@ -1,91 +1,277 @@
 # Obsidian University Workflow
 
-## Project Overview
-This vault pack supplies a set of opinionated Obsidian Templater assets for managing university material. It automates folder placement, naming, and frontmatter so lecture captures, concept summaries, and subject hubs land in the right place with consistent metadata, letting you focus on learning rather than vault housekeeping.【F:_templates/Lecture Note.md†L24-L123】【F:_templater_scripts/universityNoteUtils.js†L9-L171】
+> Streamlined, config-driven Obsidian templates for capturing every class, concept, and course hub without breaking your rhythm.
 
-## What Problems It Solves
-- **Scattered course material.** Detects the current subject and parcial (exam period) from your note context or prompts you to pick one, ensuring every file is shelved alongside related coursework.【F:_templater_scripts/getUniversityContext.js†L3-L25】【F:_templates/Concept Note Template.md†L29-L91】
-- **Manual folder wrangling.** Creates subject/parcial folders on demand, guides you through placement, and prevents collisions by auto-incrementing duplicate filenames.【F:_templater_scripts/universityNoteUtils.js†L69-L171】【F:_templates/Lecture Note.md†L88-L115】
-- **Inconsistent metadata.** Injects canonical frontmatter keys and starter sections tailored to each note type so tags, course names, and statuses stay uniform.【F:_templates/Lecture Note.md†L101-L119】【F:_templates/Subject Hub.md†L69-L117】
-- **Context switching during capture.** Uses suggesters and prompts to create new subjects, skip parciales for hubs, and pre-fill Dataview dashboards without leaving the keyboard.【F:_templates/Lecture Note.md†L32-L74】【F:_templates/Subject Hub.md†L29-L113】
+- [TL;DR](#tldr)
+- [Why this exists](#why-this-exists)
+- [Features at a glance](#features-at-a-glance)
+- [Quick Start](#quick-start)
+- [How it works](#how-it-works)
+- [Configure & Customize](#configure--customize)
+- [Usage](#usage)
+  - [Lecture Note](#lecture-note)
+  - [Concept Note](#concept-note)
+  - [General Note](#general-note)
+  - [Subject Hub](#subject-hub)
+  - [Assign Tema to Current Note](#assign-tema-to-current-note)
+- [Repository Layout](#repository-layout)
+- [Extending the system](#extending-the-system)
+- [Conventions](#conventions)
+- [Troubleshooting](#troubleshooting)
+- [FAQ](#faq)
+- [License](#license)
 
-## Features
-- **Shared placement helper.** `tp.user.universityNoteUtils()` exposes utilities such as `resolveSubjectAndParcial`, `ensureFolderPath`, and `sanitizeFileName` so templates share reliable folder logic and filename hygiene.【F:_templater_scripts/universityNoteUtils.js†L9-L171】
-- **Context-aware defaults.** `getUniversityContext` infers subject/parcial from the current path to seed prompts with sensible defaults when launching a template from an existing folder.【F:_templater_scripts/getUniversityContext.js†L3-L25】
-- **Lecture note workflow.** Guided prompts choose subject/parcial, create new subjects, and compose lecture-focused frontmatter, tags, and recall checklists in one run.【F:_templates/Lecture Note.md†L32-L126】
-- **Concept note workflow.** Builds concept notes with Feynman-style prompts and a Dataview backlink query while relocating files to the proper subject/parcial folder.【F:_templates/Concept Note Template.md†L29-L133】
-- **General note workflow.** Leaves a clean canvas with consistent metadata so you can paste external study guides or ad-hoc material without deleting pre-filled sections.【F:_templates/General Note.md†L1-L140】
-- **Subject hub dashboard.** Skips parcial selection, anchors hubs at the subject root, and renders Dataview tables for lectures, concepts, parciales, and tasks.【F:_templates/Subject Hub.md†L29-L143】
-- **Filename sanitization.** Removes illegal characters, slugifies headings, and appends numeric suffixes to avoid conflicts when notes move into their destination directories.【F:_templater_scripts/universityNoteUtils.js†L113-L171】【F:_templates/Lecture Note.md†L82-L115】
+![MIT License](https://img.shields.io/badge/License-MIT-brightgreen.svg) ![Templater Required](https://img.shields.io/badge/Templater-Required-blueviolet) ![Dataview Required](https://img.shields.io/badge/Dataview-Required-ff69b4)
 
-## Repository Layout
-- `_templates/` – Obsidian Templater markdown templates for lectures, concept notes, general notes, and subject hubs. Each template handles prompts, metadata, and Dataview sections tailored to the note type.【F:_templates/Lecture Note.md†L1-L126】【F:_templates/Concept Note Template.md†L1-L133】【F:_templates/General Note.md†L1-L140】【F:_templates/Subject Hub.md†L1-L143】
-- `_templater_scripts/` – Shared JavaScript helpers invoked through `tp.user.*`, including context detection and folder utilities used by every template.【F:_templater_scripts/getUniversityContext.js†L3-L25】【F:_templater_scripts/universityNoteUtils.js†L9-L171】
-- `AGENTS.md` – Contributor guidance for Codex-powered assistants outlining allowed edit locations and expectations.【F:AGENTS.md†L1-L7】
-- `.gitignore` – Ignores personal vault content by default so only the reusable templates and scripts remain under version control.【F:.gitignore†L1-L14】
+## TL;DR
 
-## Requirements
-- Obsidian desktop with the **Templater** community plugin enabled (templates rely on `<%* %>` script blocks and `tp.user.*` helpers).【F:_templates/Lecture Note.md†L1-L126】【F:_templater_scripts/universityNoteUtils.js†L1-L171】
-- Templater **Scripts folder** configured to `_templater_scripts/` so the shared utilities auto-load for `tp.user` calls.【F:.codex_kb/30_user_scripts.md†L1-L22】
-- Templater **Template folder** pointing to `_templates/` (or merged equivalent) to surface the lecture, concept, and hub commands.
-- Dataview plugin enabled for the dashboards embedded in the Concept Note and Subject Hub templates.【F:_templates/Concept Note Template.md†L113-L133】【F:_templates/Subject Hub.md†L101-L135】
-- Optional: assign hotkeys to frequently used templates for faster capture.
+- Capture lectures, concepts, and general notes in seconds while helpers file everything for you.
+- One config file renames every label and folder so the workflow matches your language and vault.
+- Guardrails prevent misplaced notes, duplicate filenames, and missing frontmatter.
+- Dataview dashboards auto-populate hubs and concept backlinks once notes exist.
+- Shared helpers keep folder placement, slugging, and normalization consistent across templates.
+- Works on desktop Obsidian with Templater + Dataview; mobile-friendly once templates are installed.
 
-## Setup / Installation
-1. **Add the folders to your vault.** Clone, download, or submodule this repository, then copy `_templates/` and `_templater_scripts/` into the root of your Obsidian vault (merge with existing folders if present). The repo intentionally omits personal content thanks to the blanket `.gitignore`, so you can overlay it safely.【F:.gitignore†L1-L14】
-2. **Point Templater to the assets.** In Obsidian → *Settings* → *Templater*:
-   - Set **Template folder location** to `_templates`.
-   - Set **Script files folder location** to `_templater_scripts` as described in the Templater KB.【F:.codex_kb/30_user_scripts.md†L1-L22】
-3. **Reload Templater resources.** Use *Templater → Reload User Scripts* (command palette) so the vault picks up `getUniversityContext` and `universityNoteUtils` after copying them.
-4. **Match the expected folder skeleton.** Notes default to a root `Universidad` folder with optional `<Subject>/<Parciales/...>` subfolders; adjust later via customization if your structure differs.【F:_templater_scripts/universityNoteUtils.js†L11-L87】
+## Why this exists (problem → solution in plain language)
+
+University notes quickly sprawl across random folders, and every template tweak becomes a hunt for strings to rename. This workflow treats Obsidian like a product: you run a command, answer a few prompts, and get a fully organized note with consistent frontmatter, tags, and Dataview-ready metadata. The shared helpers and config file keep everything in sync so you can rename folders, change labels, or add new parciales without editing five different templates.
+
+## Features at a glance
+
+- ✨ Config-first design – `_templater_scripts/universityConfig.js` drives folder names, labels, and schema.
+- 🧭 Smart placement – helpers resolve subjects/parciales/temas and build folders on demand.
+- 🧩 Safe naming – sanitization + unique name checks prevent collisions and illegal characters.
+- 🚀 Dataview-ready – templates ship with tables, dashboards, and backlink queries that populate instantly.
+- 📚 Guarded workflows – untitled-note checks and prompts avoid overwriting existing files.
+- 🔁 Reusable helpers – path logic, slugging, and normalization are shared for any new template you add.
+
+## Quick Start
+
+1. Copy `_templates/` and `_templater_scripts/` into your vault root.
+2. In Obsidian → *Settings → Templater*, point **Template folder** to `_templates` and **Script folder** to `_templater_scripts`.
+3. Reload Templater user scripts so `universityConfig`, `getUniversityContext`, and `universityNoteUtils` register.
+4. Enable the Dataview community plugin for dashboards and inline queries to render.
+5. Run a template (e.g., **Lecture Note**) from a new note and follow the prompts.
+
+> **Heads up:** Lecture notes and subject hubs refuse to run on pre-named files to avoid misfiling. Create a fresh note before launching them.
+
+## How it works
+
+- Template command →
+- Shared helpers (`tp.user.universityNoteUtils`) →
+- Placement resolver (subject → parcial → tema folders) →
+- Frontmatter builder (type, course, parcial, tema, dates, status, aliases) →
+- Dataview surfaces (tables, dashboards, backlinks)
+
+All templates and utilities pull labels, folder names, and canonical parciales from `_templater_scripts/universityConfig.js`, making it the single source of truth.
+
+## Configure & Customize
+
+The central config, `_templater_scripts/universityConfig.js`, powers every label and folder reference. Change it once and every template reflects your vocabulary.
+
+```js
+const universityConfig = {
+  fs: {
+    universityRoot: "Universidad", // rename the base folder here
+    parcialContainer: "Parciales", // container inside each subject
+  },
+  labels: {
+    general: "General", // label for catch-all notes & default tema
+    tema: "Tema", // rename to "Module" or similar
+  },
+  parciales: ["General", "Parcial 1", "Final"], // add/remove exam periods
+};
+```
+
+<details>
+<summary>Common tweaks</summary>
+
+- **Change the base folder name.** Update `fs.universityRoot` to whatever root directory you prefer (e.g., `"Academics"`).
+- **Rename “Parciales” or “Temas”.** Modify `fs.parcialContainer` and `fs.temaContainer` so placement helpers build folders with your terms.
+- **Switch labels in prompts.** Edit `labels.subject`, `labels.parcial`, or `labels.general` so prompts and notices use your language.
+- **Adjust default parciales.** Expand the `parciales` array to include new exam phases; normalization keeps variants consistent.
+</details>
+
+Because templates read the config at runtime, you never hard-code translations—just change the config and reload Templater.
 
 ## Usage
-### Lecture Note template
-1. Create a fresh, untitled note; the template aborts if run on a pre-named file to avoid renaming the wrong document.【F:_templates/Lecture Note.md†L69-L87】
-2. Run **Lecture Note** via the command palette or hotkey. The script loads context, lets you reuse or create subjects, and reorders parcial options around the current course.【F:_templates/Lecture Note.md†L24-L77】
-3. Provide an optional lecture topic; the template sanitizes it, builds a dated filename, and ensures uniqueness before moving the note to the subject/parcial folder.【F:_templates/Lecture Note.md†L88-L115】
-4. Start writing in the prepared sections—frontmatter captures course, parcial, type, date, status, and aliases, while headings guide summaries, concepts, examples, and open questions.【F:_templates/Lecture Note.md†L101-L126】
 
-### Concept Note template
-1. Trigger **Concept Note Template** from a draft or untitled note in any location.
-2. Choose or create the subject and parcial when prompted; the script sanitizes folder names, ensures the target directory exists, and moves the note if needed.【F:_templates/Concept Note Template.md†L29-L97】
-3. Fill in the guided sections covering formal definitions, analogies, and explanations. A Dataview query automatically lists lectures tagged for the same concept once they exist.【F:_templates/Concept Note Template.md†L101-L133】
+### Lecture Note
 
-### General Note template
-1. Launch **General Note** when you need a blank canvas with metadata; the helper lets you keep working even if you start from a pre-named draft.【F:_templates/General Note.md†L65-L108】
-2. Select or create the subject and parcial, then provide a title so the file is moved into the correct course/parcial folder with sanitized naming.【F:_templates/General Note.md†L21-L104】
-3. Paste or write freely below the inserted frontmatter and subject/general tags—the cursor lands at the blank space ready for content.【F:_templates/General Note.md†L114-L129】
+1. Create a new untitled note.
+2. Run **Lecture Note**; choose or create the subject when prompted.
+3. Pick a parcial (or use the default general option); optionally add a tema.
+4. Enter an optional lecture topic; the helper sanitizes it and builds the filename.
+5. The template moves the file into `<University>/<Subject>/<Parcial>/<Tema?>`, adds frontmatter, and inserts structured sections.
 
-### Subject Hub template
-1. Launch **Subject Hub** from an untitled note when you need a course dashboard; the helper enforces the untitled guard to protect existing pages.【F:_templates/Subject Hub.md†L21-L41】
-2. The placement helper resolves the subject (allowing new subjects) and intentionally skips parcial selection, anchoring hubs at the subject root and generating course-level tags.【F:_templates/Subject Hub.md†L43-L103】
-3. Review the generated Dataview tables summarizing lectures, concepts, parciales, and outstanding tasks for that course.【F:_templates/Subject Hub.md†L104-L143】
+```md
+---
+course: "Physics I"
+parcial: "Parcial 1"
+tema: "Waves"
+type: lecture
+date: "2024-05-03"
+created: "2024-05-03"
+status: draft
+aliases: ["Lecture 2024-05-03 - Waves"]
+concepts: []
+---
+```
 
-## Customization
-- **Add new subjects or parciales.** Use the built-in prompts; `buildSubjectOptions`, `reorderWithPreference`, and `getParcialContext` automatically surface existing folders and create new ones as needed.【F:_templater_scripts/universityNoteUtils.js†L45-L123】【F:_templates/Lecture Note.md†L32-L77】
-- **Adjust folder strategy.** Update `DEFAULT_BASE_PATH` or extend `findParcialesContainer` / `getParcialContext` if your vault uses different roots or nesting. Keep helper usage centralized so templates continue to share the same logic.【F:_templater_scripts/universityNoteUtils.js†L9-L123】
-- **Customize frontmatter or sections.** Edit the markdown blocks within each template to match your workflows (e.g., add additional tags or sections). Retain the placement routines at the top to keep automatic moves and sanitization intact.【F:_templates/Lecture Note.md†L1-L126】【F:_templates/Concept Note Template.md†L1-L133】
-- **Leverage helper exports in new templates.** Import `tp.user.universityNoteUtils()` and call functions like `resolveSubjectAndParcial`, `sanitizeFileName`, and `ensureUniqueFileName` instead of reimplementing path logic.【F:_templater_scripts/universityNoteUtils.js†L113-L171】
-- **What not to change.** Avoid bypassing the shared helpers or moving templates outside `_templates`; doing so breaks the consistent placement guarantees and violates the contributor guidelines captured in `AGENTS.md`.【F:AGENTS.md†L1-L7】
+### Concept Note
+
+1. Run **Concept Note Template** from any note (untitled or existing).
+2. Select the subject and parcial; create new ones if needed.
+3. Choose a tema or skip to keep it general.
+4. The helper moves the note into the proper subject/parcial/tema path.
+5. Fill in the definition, analogy, and explanation sections; Dataview shows related lectures automatically.
+
+```md
+---
+type: concept
+tags: [concept]
+course: "Physics I"
+parcial: "Parcial 1"
+tema: "Waves"
+date: "2024-05-03"
+created: "2024-05-03"
+status: draft
+aliases: []
+---
+```
+
+### General Note
+
+1. Run **General Note** from a new or existing note.
+2. Confirm if you want to continue when launching from a pre-named file.
+3. Pick or create the subject, parcial, and optional tema.
+4. Provide the note title; helpers sanitize and ensure a unique filename.
+5. The template moves the note, writes frontmatter, and leaves the cursor ready for free-form content.
+
+```md
+---
+type: general
+course: "Physics I"
+parcial: "General"
+tema: "Reference"
+date: "2024-05-03"
+created: "2024-05-03"
+status: draft
+aliases: ["Formula Sheet"]
+---
+```
+
+### Subject Hub
+
+1. Create a new untitled note at any location.
+2. Run **Subject Hub**; pick or create the subject (parciales are skipped on purpose).
+3. The helper anchors the hub at `<University>/<Subject>/` and generates a safe filename.
+4. Frontmatter and tags are inserted, along with Dataview dashboards for lectures, concepts, parciales→temas, and tasks.
+5. Review the checklist and fill in the overview to keep your hub current.
+
+```md
+---
+type: subject-hub
+course: "Physics I"
+tags: ["course/physics-i", "subject-hub"]
+updated: "2024-05-03"
+---
+```
+
+### Assign Tema to Current Note
+
+1. Open any note with frontmatter (lecture, concept, or general).
+2. Run **Assign Tema to Current Note** to reuse the same placement helper.
+3. Select or create the subject/parcial/tema combination.
+4. The script moves the file if necessary and updates frontmatter.
+5. Tags derived from the subject/tema slugs appear in the completion notice.
+
+```md
+course: "Physics I"
+parcial: "Parcial 2"
+tema: "Oscillations"
+```
+
+<details>
+<summary>Template prompts quick reference</summary>
+
+| Template | Prompts for subject? | Prompts for parcial? | Prompts for tema? |
+| --- | --- | --- | --- |
+| Lecture Note | ✅ | ✅ | ✅ (with skip option) |
+| Concept Note | ✅ | ✅ | ✅ |
+| General Note | ✅ | ✅ | ✅ |
+| Subject Hub | ✅ | 🚫 | 🚫 (hubs stay at subject root) |
+| Assign Tema | ✅ | ✅ | ✅ |
+</details>
+
+## Repository Layout
+
+```text
+_templates/
+  Lecture Note.md          # Guided lecture capture with placement + sections
+  Concept Note Template.md # Concept deep dives with Dataview backlinks
+  General Note.md          # Flexible note with consistent metadata
+  Subject Hub.md           # Course dashboard anchored at subject root
+  Assign Tema to Current Note.md # Utility to update existing notes
+_templater_scripts/
+  universityConfig.js      # Central labels, folders, parciales, schema
+  getUniversityContext.js  # Infers subject/parcial from current file path
+  universityNoteUtils.js   # Shared helpers for placement, slugging, and naming
+LICENSE                    # MIT license
+README.md                  # Documentation you are reading
+```
+
+## Extending the system
+
+- **Add a new note type.** Start a template in `_templates/`, import `tp.user.universityNoteUtils()`, and call `resolveSubjectParcialTema` (or `resolveSubjectAndParcial`) to reuse placement logic. Follow the existing frontmatter keys so Dataview filters stay compatible.
+- **Use placement helpers.** After `resolveSubjectParcialTema`, call `ensureFolderPath` and `ensureUniqueFileName` before moving the file; this avoids duplicating folder math or sanitization.
+- **Align frontmatter with Dataview.** New templates should set `type`, `course`, `parcial`, `tema`, `date`, `created`, and `status` so subject hubs and concept queries include them automatically.
+- **Lean on utilities.** Functions like `toSlug`, `normalizeParcial`, and `dedupePreserveOrder` keep tags, folder names, and prompt options predictable.
 
 ## Conventions
-- **Frontmatter keys.** Templates set `type`, `course`, `parcial`, `date`, `status`, `aliases`, `tags`, and `updated` (for hubs) to keep Dataview queries and metadata consistent.【F:_templates/Lecture Note.md†L101-L111】【F:_templates/Concept Note Template.md†L97-L111】【F:_templates/Subject Hub.md†L69-L93】
-- **Tagging.** Lecture notes add hashtag tags (e.g., `#course-name` and `#lecture`), while subject hubs attach `course/<slug>` and `subject-hub` for Dataview filtering.【F:_templates/Lecture Note.md†L113-L121】【F:_templates/Subject Hub.md†L57-L93】
-- **Naming.** Files default to sanitized, date-based titles with optional topic suffixes; folders replace illegal characters with hyphens via `sanitizeFileName` and `sanitizeFolderName` helpers.【F:_templates/Lecture Note.md†L82-L115】【F:_templater_scripts/universityNoteUtils.js†L105-L171】
-- **Folder structure.** Assets assume a `Universidad/<Subject>/Parciales/<Parcial>` hierarchy but degrade gracefully to a flat `Universidad` folder when parciales are omitted.【F:_templater_scripts/universityNoteUtils.js†L11-L123】
+
+| Key | Purpose | Set by |
+| --- | --- | --- |
+| `type` | Template or note category (`lecture`, `concept`, `general`, `subject-hub`) | Each template / config schema |
+| `course` | Human-readable subject name | Placement helper + prompts |
+| `parcial` | Canonical exam phase; normalized via config list | Placement helper |
+| `tema` | Optional topic/module label; defaults to general label | Placement helper |
+| `date` | Note date (usually today) | Template runtime |
+| `created` | Creation date for Dataview sorting | Template runtime |
+| `status` | Workflow status (`draft` by default) | Template runtime |
+| `aliases` | Alternative names for search/backlinks | Template runtime |
+| `tags` | Only for hubs (array of `course/<slug>`, `subject-hub`) | Subject Hub template |
+| `updated` | Last refresh date (Subject Hub only) | Subject Hub template |
+| `concepts` | Lecture note backlinks to concept pages | Lecture Note template |
+
+- **Tags & slugs:** `toSlug` converts subject/tema names into lowercase hyphenated tags. Inline tags appear in lecture and general notes; hubs store them in `tags`.
+- **Parciales & temas:** `normalizeParcial` ensures variants (e.g., `parcial-1`) resolve to canonical values from the config. Tema prompts always include a skip option that falls back to the general label.
 
 ## Troubleshooting
-- **Template aborts immediately.** Lecture and hub templates require an untitled file; create a new note named `Untitled` (or Obsidian’s locale equivalent) before running them.【F:_templates/Lecture Note.md†L69-L87】【F:_templates/Subject Hub.md†L21-L41】
-- **Helper not found errors.** Confirm Templater’s Scripts folder points to `_templater_scripts` and reload user scripts so `getUniversityContext` and `universityNoteUtils` are registered.【F:.codex_kb/30_user_scripts.md†L1-L22】【F:_templates/Lecture Note.md†L24-L40】
-- **Folders missing.** The helpers call `ensureFolderPath` before moves; if folders still fail to appear, verify you’re running Obsidian Desktop (required for filesystem writes) and that you have permission to create directories.【F:_templater_scripts/universityNoteUtils.js†L87-L123】
-- **Unexpected parcial detection.** Check your folder names: parciales are detected case-insensitively with formats like `Parcial 1` or `Final`; rename folders to match those patterns or adjust `getParcialContext`.【F:_templater_scripts/universityNoteUtils.js†L57-L123】
-- **Dataview tables empty.** Ensure Dataview is enabled and your notes carry the expected `type`, `course`, and tag metadata inserted by the templates.【F:_templates/Lecture Note.md†L101-L123】【F:_templates/Subject Hub.md†L101-L143】
 
-## Development
-- **Where to contribute.** Place new or updated templates inside `_templates/` and shared JavaScript inside `_templater_scripts/` to keep the vault pack modular.【F:AGENTS.md†L1-L7】
-- **Leverage existing helpers.** Import `tp.user.universityNoteUtils()` in new templates so placement and sanitization remain consistent across note types.【F:_templater_scripts/universityNoteUtils.js†L9-L171】
-- **Testing checklist.** Run `node --check _templater_scripts/*.js` (or equivalent) to catch syntax issues, then reload user scripts in Obsidian and perform a dry run of the relevant template to confirm prompts, moves, and notices behave as expected.【F:_templates/Lecture Note.md†L24-L126】【F:_templates/Subject Hub.md†L24-L113】
-- **Style cues.** Follow the guardrails documented in `AGENTS.md`—avoid relocating files outside the allowed directories and keep shared logic centralized in helpers.【F:AGENTS.md†L1-L7】
+- Template aborts immediately → You likely ran it on a named file; start from an untitled note for Lecture or Subject Hub.
+- Helper not found → Re-check Templater script folder settings and reload user scripts.
+- Folders didn’t appear → Desktop Obsidian is required for folder creation; confirm filesystem permissions.
+- Wrong parcial detected → Rename folders to match config values or adjust the `parciales` array for your naming.
+- Dataview outputs are empty → Ensure the plugin is enabled and notes contain the expected `type`, `course`, and tag metadata.
+- Tema assignment skipped → Run **Assign Tema** again and make sure you completed the prompts instead of cancelling.
+
+## FAQ
+
+**Can I rename folders and labels?** Yes—edit `_templater_scripts/universityConfig.js` and reload Templater.
+
+**Do I need Dataview installed?** Yes, dashboards and concept backlink queries rely on it.
+
+**What about mobile?** Once the templates and scripts sync to mobile, Templater commands run fine (Obsidian Mobile doesn’t create folders silently, so sync from desktop first).
+
+**Can I add more parciales or temas?** Absolutely; update the `parciales` array and the helpers will normalize new values.
+
+**How do I add a new template?** Copy an existing template, keep the helper imports, and reuse `resolveSubjectParcialTema` before you add custom sections.
+
+**Can I skip parciales entirely?** Set your config’s `parciales` array to a single general label and the prompts will collapse to that value.
+
+**Do I need to write JavaScript?** Only for advanced extensions—the provided helpers cover placement, slugging, and normalization out of the box.
 
 ## License
-Released under the MIT License (see [`LICENSE`](LICENSE)).【F:LICENSE†L1-L19】
+
+Released under the MIT License. See [`LICENSE`](LICENSE).
