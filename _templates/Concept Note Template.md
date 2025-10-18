@@ -8,14 +8,10 @@ const {
 
 const noteUtils = await tp.user.universityNoteUtils();
 const {
-  pathJoin,
-  getBaseUniversityPath,
-  getParcialContext,
   ensureFolderPath,
   ensureUniqueFileName,
-  sanitizeFolderName,
-  reorderOptions,
-  buildSubjectOptions,
+  normalizeParcial,
+  resolveSubjectParcialTema,
 } = noteUtils ?? {};
 
 if (!noteUtils) {
@@ -23,61 +19,37 @@ if (!noteUtils) {
   return;
 }
 
-const parcialOptionsBase = [
-  "General",
-  "Parcial 1",
-  "Parcial 2",
-  "Parcial 3",
-  "Final",
-];
-
-const baseUniversityPath = getBaseUniversityPath(currentFile);
-const subjectOptions = buildSubjectOptions(baseUniversityPath, contextSubject);
-const NEW_SUBJECT_SENTINEL = "__new_subject__";
-const subjectSelection =
-  (await tp.system.suggester(
-    [...subjectOptions, "➕ Create new subject"],
-    [...subjectOptions, NEW_SUBJECT_SENTINEL]
-  )) ??
-  contextSubject ??
-  "General";
-
-let selectedSubject = subjectSelection;
-
-if (subjectSelection === NEW_SUBJECT_SENTINEL) {
-  const newSubjectInput = await tp.system.prompt("Name for the new subject");
-  selectedSubject = newSubjectInput?.trim() || contextSubject || "General";
+if (!resolveSubjectParcialTema) {
+  new Notice("⛔️ Abort: Placement helper is unavailable.", 10_000);
+  return;
 }
 
-const parcialOptions = reorderOptions(parcialOptionsBase, contextParcial);
-const selectedParcial =
-  (await tp.system.suggester(parcialOptions, parcialOptions)) ?? contextParcial ?? "General";
+const placement = await resolveSubjectParcialTema(tp, {
+  currentFile,
+  contextSubject,
+  contextParcial,
+  contextTema: "General",
+});
 
-const subjectFolderName =
-  selectedSubject && selectedSubject !== "General" ? sanitizeFolderName(selectedSubject) : null;
-const parcialFolderName =
-  selectedParcial && selectedParcial !== "General" ? sanitizeFolderName(selectedParcial) : null;
+const {
+  targetFolder,
+  subject: resolvedSubject = "General",
+  parcial: resolvedParcial = "General",
+  tema: resolvedTema = "General",
+} = placement ?? {};
 
-const { containerPath: parcialContainerPath } = getParcialContext(
-  baseUniversityPath,
-  subjectFolderName ?? undefined
-);
-
-let targetFolder = parcialContainerPath || baseUniversityPath;
-
-if (subjectFolderName && !(targetFolder?.includes(subjectFolderName))) {
-  targetFolder = pathJoin(baseUniversityPath, subjectFolderName);
-}
-
-if (parcialFolderName) {
-  targetFolder = pathJoin(targetFolder, parcialFolderName);
-}
+const selectedSubject = resolvedSubject || "General";
+const selectedParcial = normalizeParcial(resolvedParcial);
+const selectedTema = resolvedTema?.toString().trim() || "General";
 
 if (!targetFolder) {
-  targetFolder = baseUniversityPath;
+  new Notice("⛔️ Abort: Could not determine destination folder.", 10_000);
+  return;
 }
 
 await ensureFolderPath(targetFolder);
+
+const today = tp.date.now("YYYY-MM-DD");
 
 const extension = currentFile?.extension ?? "md";
 const finalFileName = ensureUniqueFileName(targetFolder, currentFile?.basename ?? "Untitled", extension);
@@ -94,7 +66,11 @@ tR += [
   "tags: [concept]",
   `course: ${JSON.stringify(selectedSubject)}`,
   `parcial: ${JSON.stringify(selectedParcial)}`,
+  `tema: ${JSON.stringify(selectedTema)}`,
+  `date: ${JSON.stringify(today)}`,
+  `created: ${JSON.stringify(today)}`,
   "status: draft",
+  "aliases: []",
   "---",
   "",
 ].join("\n");
@@ -122,7 +98,40 @@ tp.file.cursor();
 ## 🔗 Connections
 *This concept is mentioned in the following lectures and notes:*
 
-```dataview
-LIST FROM [[<% tp.file.title %>]] AND #lecture
-SORT file.ctime ASC
+```dataviewjs
+const concept = dv.current();
+const targetCourse = concept.course ?? "General";
+const targetName = (concept.file?.name ?? "").toLowerCase();
+const targetPath = concept.file?.path ?? "";
+
+const allowedTypes = new Set(["lecture"]);
+const sortValue = (page) => page.created ?? page.date ?? page.file?.ctime;
+
+const matches = dv
+  .pages("")
+  .where((page) => (page.course ?? "General") === targetCourse)
+  .where((page) => allowedTypes.has((page.type ?? "").toLowerCase()))
+  .where((page) => {
+    const concepts = Array.isArray(page.concepts) ? page.concepts : [];
+    const conceptMatch = concepts.some((entry) => {
+      if (!entry) {
+        return false;
+      }
+
+      const entryValue = entry.path ?? entry.toString?.() ?? entry;
+      if (!entryValue) {
+        return false;
+      }
+
+      const lowered = entryValue.toString().toLowerCase();
+      return lowered === targetName || lowered === targetPath.toLowerCase();
+    });
+
+    const linkMatch = (page.file?.outlinks ?? []).some((link) => link.path === targetPath);
+    return conceptMatch || linkMatch;
+  })
+  .array()
+  .sort((a, b) => dv.compare(sortValue(a), sortValue(b)));
+
+dv.list(matches.map((page) => page.file.link));
 ```

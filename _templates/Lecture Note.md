@@ -6,15 +6,12 @@ const { subject: contextSubject = "General", parcial: contextParcial = "General"
 
 const noteUtils = await tp.user.universityNoteUtils();
 const {
-  pathJoin,
-  getBaseUniversityPath,
-  getParcialContext,
   ensureFolderPath,
   ensureUniqueFileName,
-  sanitizeFolderName,
   sanitizeFileName,
-  reorderOptions,
-  buildSubjectOptions,
+  toSlug,
+  normalizeParcial,
+  resolveSubjectParcialTema,
 } = noteUtils ?? {};
 
 if (!noteUtils) {
@@ -22,55 +19,37 @@ if (!noteUtils) {
   return;
 }
 
-const parcialOptions = ["General", "Parcial 1", "Parcial 2", "Parcial 3", "Final"];
-
-const baseUniversityPath = getBaseUniversityPath(currentFile);
-const selectedSubjectOptions = buildSubjectOptions(baseUniversityPath, contextSubject);
-const NEW_SUBJECT_SENTINEL = "__new_subject__";
-const subjectSelection =
-  (await tp.system.suggester(
-    [...selectedSubjectOptions, "➕ Create new subject"],
-    [...selectedSubjectOptions, NEW_SUBJECT_SENTINEL]
-  )) ??
-  contextSubject ??
-  "General";
-
-let subject = subjectSelection;
-
-if (subjectSelection === NEW_SUBJECT_SENTINEL) {
-  const newSubjectInput = await tp.system.prompt("Name for the new subject");
-  subject = newSubjectInput?.trim() || contextSubject || "General";
+if (!resolveSubjectParcialTema) {
+  new Notice("⛔️ Abort: Placement helper is unavailable.", 10_000);
+  return;
 }
 
-const selectedParcialOptions = reorderOptions(parcialOptions, contextParcial);
-const parcial =
-  (await tp.system.suggester(selectedParcialOptions, selectedParcialOptions)) ??
-  contextParcial ??
-  "General";
+const placement = await resolveSubjectParcialTema(tp, {
+  currentFile,
+  contextSubject,
+  contextParcial,
+  contextTema: "General",
+});
 
-const subjectFolderName = subject && subject !== "General" ? sanitizeFolderName(subject) : null;
-const parcialFolderName = parcial && parcial !== "General" ? sanitizeFolderName(parcial) : null;
+const {
+  targetFolder,
+  subject: resolvedSubject = "General",
+  parcial: resolvedParcial = "General",
+  tema: resolvedTema = "General",
+} = placement ?? {};
 
-const { containerPath: parcialContainerPath } = getParcialContext(
-  baseUniversityPath,
-  subjectFolderName ?? undefined
-);
-
-let targetFolder = parcialContainerPath || baseUniversityPath;
-
-if (subjectFolderName && !(targetFolder?.includes(subjectFolderName))) {
-  targetFolder = pathJoin(baseUniversityPath, subjectFolderName);
-}
-
-if (parcialFolderName) {
-  targetFolder = pathJoin(targetFolder, parcialFolderName);
-}
+const subject = resolvedSubject || "General";
+const parcial = normalizeParcial(resolvedParcial);
+const tema = resolvedTema?.toString().trim() || "General";
 
 if (!targetFolder) {
-  targetFolder = baseUniversityPath;
+  new Notice("⛔️ Abort: Could not determine destination folder.", 10_000);
+  return;
 }
 
 await ensureFolderPath(targetFolder);
+
+const today = tp.date.now("YYYY-MM-DD");
 
 // --- 1. VALIDATION ---
 if (!currentFile) {
@@ -85,12 +64,11 @@ if (!basename.startsWith("untitled") && !basename.startsWith("sin título")) {
 }
 
 // --- 2. PROMPT FOR TOPIC & DEFINE NAME ---
-const date = tp.date.now("YYYY-MM-DD");
 const topicInput = await tp.system.prompt("Lecture Topic (optional)");
 const rawTopic = topicInput?.trim();
 const safeTopic = sanitizeFileName(rawTopic) || "Untitled Topic";
 
-const baseTitle = sanitizeFileName(`Lecture ${date}`);
+const baseTitle = sanitizeFileName(`Lecture ${today}`);
 const noteTitle = rawTopic ? sanitizeFileName(`${baseTitle} - ${safeTopic}`) : baseTitle;
 const headingTitle = rawTopic ? safeTopic : noteTitle;
 const extension = currentFile?.extension ?? "md";
@@ -100,27 +78,31 @@ const needsMove =
   currentFile?.parent?.path !== targetFolder || (currentFile?.basename ?? "") !== finalFileName;
 
 // --- 3. BUILD THE CONTENT ---
-const toSlug = (value = "") =>
-  value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^\w\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .toLowerCase();
-
 const subjectSlug = toSlug(subject);
-const lectureTags = [subjectSlug && `#${subjectSlug}`, "#lecture"].filter(Boolean).join(" ");
+const temaSlug = toSlug(tema);
+const lectureTags =
+  [
+    subjectSlug && `#${subjectSlug}`,
+    temaSlug && temaSlug !== subjectSlug ? `#${temaSlug}` : null,
+    "#lecture",
+  ]
+    .filter(Boolean)
+    .join(" ");
 const alias = JSON.stringify(headingTitle);
+const date = today;
+const created = today;
 
 const frontMatter = [
   "---",
   `course: ${JSON.stringify(subject)}`,
   `parcial: ${JSON.stringify(parcial)}`,
+  `tema: ${JSON.stringify(tema)}`,
   "type: lecture",
   `date: ${JSON.stringify(date)}`,
+  `created: ${JSON.stringify(created)}`,
   "status: draft",
   `aliases: [${alias}]`,
+  "concepts: []",
   "---",
 ].join("\n");
 

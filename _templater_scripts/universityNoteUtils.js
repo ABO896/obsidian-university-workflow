@@ -150,6 +150,27 @@ function universityNoteUtils() {
     };
   }
 
+  function getTemaContext(basePath, subjectFolderName, parcialFolderName) {
+    const subjectPath = subjectFolderName ? pathJoin(basePath, subjectFolderName) : basePath;
+    let temaContainerPath = subjectPath;
+
+    if (parcialFolderName) {
+      const { containerPath: parcialContainerPath } = getParcialContext(
+        basePath,
+        subjectFolderName ?? undefined
+      );
+      const parcialPath = parcialContainerPath || subjectPath;
+      temaContainerPath = pathJoin(parcialPath, parcialFolderName);
+    }
+
+    const existingTemas = listImmediateFolderNames(temaContainerPath);
+
+    return {
+      containerPath: temaContainerPath,
+      existingTemas: sortCaseInsensitive(dedupePreserveOrder(existingTemas)),
+    };
+  }
+
   async function ensureFolderPath(folderPath) {
     if (!folderPath) {
       return;
@@ -199,14 +220,55 @@ function universityNoteUtils() {
     return name?.toString().replace(/[\\/:*?"<>|]/g, "-").trim() ?? "";
   }
 
-  async function resolveSubjectAndParcial(tp, {
-    currentFile,
-    contextSubject = "General",
-    contextParcial = "General",
-    parcialOptions: parcialOptionsInput,
-    allowNewSubject = true,
-    includeParcial = true,
-  } = {}) {
+  function toSlug(value = "") {
+    return value
+      ?.toString()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^\w\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "-")
+      .toLowerCase();
+  }
+
+  function normalizeParcial(parcial) {
+    const value = parcial?.toString().trim();
+    if (!value) {
+      return "General";
+    }
+
+    const lowered = value.toLowerCase();
+
+    if (lowered === "general") {
+      return "General";
+    }
+
+    if (lowered === "final") {
+      return "Final";
+    }
+
+    const parcialMatch = lowered.match(/parcial\s*(\d)/);
+    if (parcialMatch) {
+      const parcialNumber = parcialMatch[1];
+      if (["1", "2", "3"].includes(parcialNumber)) {
+        return `Parcial ${parcialNumber}`;
+      }
+    }
+
+    return "General";
+  }
+
+  async function resolveSubjectAndParcial(
+    tp,
+    {
+      currentFile,
+      contextSubject = "General",
+      contextParcial = "General",
+      parcialOptions: parcialOptionsInput,
+      allowNewSubject = true,
+      includeParcial = true,
+    } = {}
+  ) {
     if (!tp) {
       throw new Error("Templater API (tp) is required to resolve placement.");
     }
@@ -288,22 +350,123 @@ function universityNoteUtils() {
     };
   }
 
+  async function resolveSubjectParcialTema(
+    tp,
+    {
+      includeParcial = true,
+      includeTema = true,
+      contextTema = "General",
+      allowNewTema = true,
+      ...rest
+    } = {}
+  ) {
+    const placement = await resolveSubjectAndParcial(tp, {
+      ...rest,
+      includeParcial,
+    });
+
+    if (!includeTema) {
+      return placement;
+    }
+
+    const {
+      baseUniversityPath,
+      subjectFolderName,
+      parcialFolderName,
+      targetFolder: baseTargetFolder,
+      subjectRootPath,
+    } = placement ?? {};
+
+    const temaContext = getTemaContext(
+      baseUniversityPath,
+      subjectFolderName ?? undefined,
+      includeParcial ? parcialFolderName ?? undefined : undefined
+    );
+
+    const temaContainerPath =
+      temaContext?.containerPath ||
+      baseTargetFolder ||
+      subjectRootPath ||
+      baseUniversityPath;
+
+    const existingTemas = temaContext?.existingTemas ?? [];
+    const NEW_TEMA_SENTINEL = "__new_tema__";
+    const SKIP_TEMA_SENTINEL = "__skip_tema__";
+
+    const baseTemaOptions = dedupePreserveOrder([
+      "General",
+      contextTema && contextTema !== "General" ? contextTema : null,
+      ...existingTemas,
+    ]).filter(Boolean);
+
+    let temaSelection = contextTema ?? "General";
+
+    if (allowNewTema || baseTemaOptions.length > 0) {
+      const displayOptions = [...baseTemaOptions];
+      const valueOptions = [...baseTemaOptions];
+
+      if (allowNewTema) {
+        displayOptions.push("➕ Create new tema");
+        valueOptions.push(NEW_TEMA_SENTINEL);
+      }
+
+      displayOptions.push("🚫 Skip tema");
+      valueOptions.push(SKIP_TEMA_SENTINEL);
+
+      temaSelection =
+        (await tp.system.suggester(displayOptions, valueOptions, "Select tema")) ??
+        contextTema ??
+        "General";
+    }
+
+    let tema = temaSelection;
+
+    if (temaSelection === NEW_TEMA_SENTINEL) {
+      const newTemaInput = await tp.system.prompt("Name for the new tema");
+      tema = newTemaInput?.trim() || contextTema || "General";
+    } else if (temaSelection === SKIP_TEMA_SENTINEL) {
+      tema = "General";
+    }
+
+    if (!tema) {
+      tema = "General";
+    }
+
+    const temaFolderName = tema && tema !== "General" ? sanitizeFolderName(tema) : null;
+    const targetFolder = temaFolderName
+      ? pathJoin(temaContainerPath, temaFolderName)
+      : temaContainerPath;
+
+    return {
+      ...placement,
+      tema,
+      temaFolderName,
+      temaContainerPath,
+      temaOptions: existingTemas,
+      targetFolder,
+    };
+  }
+
   return {
     DEFAULT_BASE_PATH,
     pathJoin,
     getBaseUniversityPath,
     listSubjects,
     getParcialContext,
+    getTemaContext,
     ensureFolderPath,
     ensureUniqueFileName,
     dedupePreserveOrder,
     sortCaseInsensitive,
     sanitizeFolderName,
     sanitizeFileName,
+    toSlug,
+    normalizeParcial,
     reorderWithPreference,
     reorderOptions: reorderWithPreference,
     buildSubjectOptions,
     resolveSubjectAndParcial,
+    resolveSubjectParcialTema,
   };
 }
 

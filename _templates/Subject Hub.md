@@ -15,6 +15,7 @@ const {
   ensureUniqueFileName,
   ensureFolderPath,
   resolveSubjectAndParcial,
+  toSlug,
 } = noteUtils ?? {};
 
 if (!resolveSubjectAndParcial) {
@@ -53,15 +54,6 @@ const selectedSubject = subject || "General";
 
 await ensureFolderPath(targetRoot);
 
-const toSlug = (value = "") =>
-  value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^\w\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .toLowerCase();
-
 const subjectSlug = toSlug(selectedSubject || "General");
 const courseTag = subjectSlug ? `course/${subjectSlug}` : null;
 
@@ -96,26 +88,111 @@ lines.push("- [ ] Upcoming priorities");
 lines.push("");
 lines.push("## 📘 Lectures");
 lines.push("```dataview");
-lines.push('TABLE file.ctime AS "Created", default(parcial, "General") AS "Parcial"');
+lines.push('TABLE default(created, date, file.ctime) AS "Created", default(parcial, "General") AS "Parcial"');
 lines.push('FROM ""');
 lines.push('WHERE course = this.course AND type = "lecture"');
-lines.push('SORT file.ctime DESC');
+lines.push('SORT default(created, date, file.ctime) DESC');
 lines.push("```");
 lines.push("");
 lines.push("## 💡 Concepts");
 lines.push("```dataview");
-lines.push('TABLE file.ctime AS "Created"');
+lines.push('TABLE default(created, date, file.ctime) AS "Created"');
 lines.push('FROM ""');
 lines.push('WHERE course = this.course AND type = "concept"');
-lines.push('SORT file.ctime DESC');
+lines.push('SORT default(created, date, file.ctime) DESC');
 lines.push("```");
 lines.push("");
 lines.push("## 🗂️ Notes by Parcial");
 lines.push("```dataview");
 lines.push('TABLE WITHOUT ID rows.file.link AS "Notes"');
 lines.push('FROM ""');
-lines.push('WHERE course = this.course');
+lines.push('WHERE course = this.course AND contains(["lecture", "concept", "general"], type)');
 lines.push('GROUP BY default(parcial, "General")');
+lines.push('SORT key ASC');
+lines.push("```");
+lines.push("");
+lines.push("## 🧭 Parciales → Temas");
+lines.push("```dataviewjs");
+lines.push(String.raw`const current = dv.current();
+const targetCourse = current.course ?? "General";
+const allowedTypes = new Set(["lecture", "concept", "general"]);
+const getSortValue = (page) => page.created ?? page.date ?? page.file?.ctime;
+
+const pages = dv
+  .pages("")
+  .where((page) => (page.course ?? "General") === targetCourse)
+  .where((page) => allowedTypes.has((page.type ?? "").toLowerCase()))
+  .array();
+
+if (pages.length === 0) {
+  dv.paragraph("No course notes yet.");
+} else {
+  const groupMap = new Map();
+
+  for (const page of pages) {
+    const parcialKey = (page.parcial ?? "General") || "General";
+    const temaKey = (page.tema ?? "General") || "General";
+    const entry = { page, parcialKey, temaKey };
+    if (!groupMap.has(parcialKey)) {
+      groupMap.set(parcialKey, []);
+    }
+    groupMap.get(parcialKey).push(entry);
+  }
+
+  const parcialKeys = Array.from(groupMap.keys()).sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: "base" })
+  );
+
+  for (const parcialKey of parcialKeys) {
+    dv.header(3, "Parcial: " + parcialKey);
+    const entries = groupMap.get(parcialKey) ?? [];
+    const temaMap = new Map();
+
+    for (const entry of entries) {
+      if (!temaMap.has(entry.temaKey)) {
+        temaMap.set(entry.temaKey, []);
+      }
+      temaMap.get(entry.temaKey).push(entry);
+    }
+
+    const temaKeys = Array.from(temaMap.keys()).sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" })
+    );
+
+    for (const temaKey of temaKeys) {
+      const temaEntries = (temaMap.get(temaKey) ?? []).slice().sort((a, b) =>
+        dv.compare(getSortValue(a.page), getSortValue(b.page))
+      );
+      dv.paragraph("**" + temaKey + "**");
+      dv.list(temaEntries.map((item) => item.page.file.link));
+    }
+  }
+}`);
+lines.push("```");
+lines.push("");
+lines.push("## 🗒️ Temas Index");
+lines.push("```dataviewjs");
+lines.push(String.raw`const targetCourse = dv.current().course ?? "General";
+const allowedTypes = new Set(["lecture", "concept", "general"]);
+const temasPages = dv
+  .pages("")
+  .where((page) => (page.course ?? "General") === targetCourse)
+  .where((page) => allowedTypes.has((page.type ?? "").toLowerCase()))
+  .array();
+
+const temaSet = new Set(
+  temasPages.map((page) => (page.tema ?? "General") || "General")
+);
+
+const temaList = Array.from(temaSet).sort((a, b) =>
+  a.localeCompare(b, undefined, { sensitivity: "base" })
+);
+
+if (temaList.length === 0) {
+  dv.paragraph("No temas recorded yet.");
+} else {
+  dv.list(temaList);
+}`);
 lines.push("```");
 lines.push("");
 lines.push("## ⏳ Open Tasks");

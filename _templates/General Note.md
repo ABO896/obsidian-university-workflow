@@ -8,15 +8,12 @@ const {
 
 const noteUtils = await tp.user.universityNoteUtils();
 const {
-  pathJoin,
-  getBaseUniversityPath,
-  getParcialContext,
   ensureFolderPath,
   ensureUniqueFileName,
-  sanitizeFolderName,
   sanitizeFileName,
-  reorderOptions,
-  buildSubjectOptions,
+  toSlug,
+  normalizeParcial,
+  resolveSubjectParcialTema,
 } = noteUtils ?? {};
 
 if (!noteUtils) {
@@ -29,64 +26,32 @@ if (!currentFile) {
   return;
 }
 
-const baseUniversityPath = getBaseUniversityPath(currentFile);
-const subjectOptions = buildSubjectOptions(baseUniversityPath, contextSubject);
-const NEW_SUBJECT_SENTINEL = "__new_subject__";
-const subjectSelection =
-  (await tp.system.suggester(
-    [...subjectOptions, "➕ Create new subject"],
-    [...subjectOptions, NEW_SUBJECT_SENTINEL]
-  )) ??
-  contextSubject ??
-  "General";
-
-let selectedSubject = subjectSelection;
-
-if (subjectSelection === NEW_SUBJECT_SENTINEL) {
-  const newSubjectInput = await tp.system.prompt("Name for the new subject");
-  selectedSubject = newSubjectInput?.trim() || contextSubject || "General";
+if (!resolveSubjectParcialTema) {
+  new Notice("⛔️ Abort: Placement helper is unavailable.", 10_000);
+  return;
 }
 
-const parcialOptionsBase = [
-  "General",
-  "Parcial 1",
-  "Parcial 2",
-  "Parcial 3",
-  "Final",
-];
+const placement = await resolveSubjectParcialTema(tp, {
+  currentFile,
+  contextSubject,
+  contextParcial,
+  contextTema: "General",
+});
 
-const parcialOptions = reorderOptions(parcialOptionsBase, contextParcial);
-const selectedParcial =
-  (await tp.system.suggester(parcialOptions, parcialOptions)) ??
-  contextParcial ??
-  "General";
+const {
+  targetFolder,
+  subject: resolvedSubject = "General",
+  parcial: resolvedParcial = "General",
+  tema: resolvedTema = "General",
+} = placement ?? {};
 
-const subjectFolderName =
-  selectedSubject && selectedSubject !== "General"
-    ? sanitizeFolderName(selectedSubject)
-    : null;
-const parcialFolderName =
-  selectedParcial && selectedParcial !== "General"
-    ? sanitizeFolderName(selectedParcial)
-    : null;
-
-const { containerPath: parcialContainerPath } = getParcialContext(
-  baseUniversityPath,
-  subjectFolderName ?? undefined
-);
-
-let targetFolder = parcialContainerPath || baseUniversityPath;
-
-if (subjectFolderName && !(targetFolder?.includes(subjectFolderName))) {
-  targetFolder = pathJoin(baseUniversityPath, subjectFolderName);
-}
-
-if (parcialFolderName) {
-  targetFolder = pathJoin(targetFolder, parcialFolderName);
-}
+const selectedSubject = resolvedSubject || "General";
+const selectedParcial = normalizeParcial(resolvedParcial);
+const selectedTema = resolvedTema?.toString().trim() || "General";
 
 if (!targetFolder) {
-  targetFolder = baseUniversityPath;
+  new Notice("⛔️ Abort: Could not determine destination folder.", 10_000);
+  return;
 }
 
 await ensureFolderPath(targetFolder);
@@ -125,26 +90,30 @@ const finalFileName = ensureUniqueFileName(targetFolder, safeTitle, extension);
 const destinationPath = `${targetFolder}/${finalFileName}.${extension}`;
 const needsMove = currentFile?.path !== destinationPath;
 
-const toSlug = (value = "") =>
-  value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^\w\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .toLowerCase();
-
+const today = tp.date.now("YYYY-MM-DD");
 const subjectSlug = toSlug(selectedSubject);
-const inlineTags = [subjectSlug && `#${subjectSlug}`, "#general-note"]
-  .filter(Boolean)
-  .join(" ");
+const temaSlug = toSlug(selectedTema);
+const inlineTags =
+  [
+    subjectSlug && `#${subjectSlug}`,
+    temaSlug && temaSlug !== subjectSlug ? `#${temaSlug}` : null,
+    "#general-note",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+const aliasValue = JSON.stringify(rawTitle || safeTitle);
 
 const frontMatter = [
   "---",
   "type: general",
   `course: ${JSON.stringify(selectedSubject)}`,
   `parcial: ${JSON.stringify(selectedParcial)}`,
+  `tema: ${JSON.stringify(selectedTema)}`,
+  `date: ${JSON.stringify(today)}`,
+  `created: ${JSON.stringify(today)}`,
   "status: draft",
+  `aliases: [${aliasValue}]`,
   "---",
   "",
 ].join("\n");
