@@ -60,7 +60,7 @@ University notes quickly sprawl across random folders, and every template tweak 
 - Template command →
 - Shared helpers (`tp.user.universityNoteUtils`) →
 - Placement resolver (subject → parcial → tema folders) →
-- Frontmatter builder (type, course, parcial, tema, dates, status, aliases) →
+- Frontmatter builder (type, course, parcial, tema, timestamps, status, aliases) →
 - Dataview surfaces (tables, dashboards, backlinks)
 
 All templates and utilities pull labels, folder names, and canonical parciales from `_templater_scripts/universityConfig.js`, making it the single source of truth.
@@ -110,7 +110,6 @@ course: "Physics I"
 parcial: "Parcial 1"
 tema: "Waves"
 type: lecture
-date: "2024-05-03"
 created: "2024-05-03"
 status: draft
 aliases: ["Lecture 2024-05-03 - Waves"]
@@ -133,7 +132,6 @@ tags: [concept]
 course: "Physics I"
 parcial: "Parcial 1"
 tema: "Waves"
-date: "2024-05-03"
 created: "2024-05-03"
 status: draft
 aliases: []
@@ -154,7 +152,6 @@ type: general
 course: "Physics I"
 parcial: "General"
 tema: "Reference"
-date: "2024-05-03"
 created: "2024-05-03"
 status: draft
 aliases: ["Formula Sheet"]
@@ -173,6 +170,7 @@ aliases: ["Formula Sheet"]
 ---
 type: subject-hub
 course: "Physics I"
+created: "2024-05-03"
 tags: ["course/physics-i", "subject-hub"]
 updated: "2024-05-03"
 ---
@@ -225,7 +223,7 @@ README.md                  # Documentation you are reading
 
 - **Add a new note type.** Start a template in `_templates/`, import `tp.user.universityNoteUtils()`, and call `resolveSubjectParcialTema` (or `resolveSubjectAndParcial`) to reuse placement logic. Follow the existing frontmatter keys so Dataview filters stay compatible.
 - **Use placement helpers.** After `resolveSubjectParcialTema`, call `ensureFolderPath` and `ensureUniqueFileName` before moving the file; this avoids duplicating folder math or sanitization.
-- **Align frontmatter with Dataview.** New templates should set `type`, `course`, `parcial`, `tema`, `date`, `created`, and `status` so subject hubs and concept queries include them automatically.
+- **Align frontmatter with Dataview.** New templates should set `type`, `course`, `parcial`, `tema`, `created`, and `status` (plus `updated` when relevant) so subject hubs and concept queries include them automatically.
 - **Lean on utilities.** Functions like `toSlug`, `normalizeParcial`, and `dedupePreserveOrder` keep tags, folder names, and prompt options predictable.
 
 ## Conventions
@@ -236,17 +234,17 @@ README.md                  # Documentation you are reading
 | `course` | Human-readable subject name | Placement helper + prompts |
 | `parcial` | Canonical exam phase; normalized via config list | Placement helper |
 | `tema` | Optional topic/module label; defaults to general label | Placement helper |
-| `date` | Note date (usually today) | Template runtime |
-| `created` | Creation date for Dataview sorting | Template runtime |
+| `created` | Primary timestamp for Dataview sorting (falls back to legacy `date`) | Template runtime |
 | `status` | Workflow status (`draft` by default) | Template runtime |
 | `aliases` | Alternative names for search/backlinks | Template runtime |
 | `tags` | Only for hubs (array of `course/<slug>`, `subject-hub`) | Subject Hub template |
 | `updated` | Last refresh date (Subject Hub only) | Subject Hub template |
 | `concepts` | Lecture note backlinks to concept pages | Lecture Note template |
 
+- **Legacy compatibility:** Dashboards sort by `created` but automatically fall back to older `date` fields (or `file.ctime`) when that key is missing, so mixed notes continue to render correctly.
 - **Tags & slugs:** `toSlug` converts subject/tema names into lowercase hyphenated tags. Inline tags appear in lecture and general notes; hubs store them in `tags`.
 - **Parciales & temas:** `normalizeParcial` ensures variants (e.g., `parcial-1`) resolve to canonical values from the config. Tema prompts always include a skip option that falls back to the general label.
-
+ 
 ## Troubleshooting
 
 - Template aborts immediately → You likely ran it on a named file; start from an untitled note for Lecture or Subject Hub.

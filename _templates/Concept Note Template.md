@@ -76,7 +76,6 @@ tR += [
   `course: ${JSON.stringify(selectedSubject)}`,
   `parcial: ${JSON.stringify(selectedParcial)}`,
   `tema: ${JSON.stringify(selectedTema)}`,
-  `date: ${JSON.stringify(today)}`,
   `created: ${JSON.stringify(today)}`,
   "status: draft",
   "aliases: []",
