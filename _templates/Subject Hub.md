@@ -106,7 +106,9 @@ const finalFileName = ensureUniqueFileName(targetRoot, safeFileBase, extension);
 const destinationPath = `${targetRoot}/${finalFileName}.${extension}`;
 const needsMove = currentFile?.path !== destinationPath;
 
-const updated = tp.date.now("YYYY-MM-DD");
+const timestamp = tp.date.now("YYYY-MM-DD");
+const created = timestamp;
+const updated = timestamp;
 const tags = [courseTag, "subject-hub"].filter(Boolean).map((tag) => JSON.stringify(tag));
 const tagsLine = `tags: [${tags.join(", ")}]`;
 
@@ -114,6 +116,7 @@ const frontMatter = [
   "---",
   "type: subject-hub",
   `course: ${JSON.stringify(selectedSubject)}`,
+  `created: ${JSON.stringify(created)}`,
   tagsLine,
   `updated: ${JSON.stringify(updated)}`,
   "---",
@@ -135,18 +138,18 @@ const parcialesToTemasTitle = `${parcialContainerName} → ${temaContainerName}`
 
 lines.push("## 📘 Lectures");
 lines.push("```dataview");
-lines.push(`TABLE default(created, date, file.ctime) AS "Created", default(parcial, ${generalLiteral}) AS ${parcialColumnLabel}`);
+lines.push(`TABLE default(created, default(date, file.ctime)) AS "Created", default(parcial, ${generalLiteral}) AS ${parcialColumnLabel}`);
 lines.push('FROM ""');
 lines.push('WHERE course = this.course AND type = "lecture"');
-lines.push('SORT default(created, date, file.ctime) DESC');
+lines.push('SORT default(created, default(date, file.ctime)) DESC');
 lines.push("```");
 lines.push("");
 lines.push("## 💡 Concepts");
 lines.push("```dataview");
-lines.push('TABLE default(created, date, file.ctime) AS "Created"');
+lines.push('TABLE default(created, default(date, file.ctime)) AS "Created"');
 lines.push('FROM ""');
 lines.push('WHERE course = this.course AND type = "concept"');
-lines.push('SORT default(created, date, file.ctime) DESC');
+lines.push('SORT default(created, default(date, file.ctime)) DESC');
 lines.push("```");
 lines.push("");
 lines.push(`## 🗂️ Notes by ${parcialLabel}`);

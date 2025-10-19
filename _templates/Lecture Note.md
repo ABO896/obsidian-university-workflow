@@ -102,7 +102,6 @@ const lectureTags =
     .filter(Boolean)
     .join(" ");
 const alias = JSON.stringify(headingTitle);
-const date = today;
 const created = today;
 
 const frontMatter = [
@@ -111,7 +110,6 @@ const frontMatter = [
   `parcial: ${JSON.stringify(parcial)}`,
   `tema: ${JSON.stringify(tema)}`,
   "type: lecture",
-  `date: ${JSON.stringify(date)}`,
   `created: ${JSON.stringify(created)}`,
   "status: draft",
   `aliases: [${alias}]`,
