@@ -10,11 +10,56 @@ const path = require("path");
 
 function requireScript(scriptFile) {
   const vaultBasePath = app?.vault?.adapter?.basePath;
-  if (!vaultBasePath) {
-    throw new Error("Unable to resolve vault base path to load user scripts.");
+  const scriptRelativePath = path.join("_templater_scripts", scriptFile);
+
+  if (vaultBasePath) {
+    const absolutePath = path.join(vaultBasePath, scriptRelativePath);
+
+    try {
+      return require(absolutePath);
+    } catch (error) {
+      if (!shouldFallbackToLocalRequire(error, absolutePath)) {
+        throw error;
+      }
+    }
   }
 
-  return require(path.join(vaultBasePath, "_templater_scripts", scriptFile));
+  const localTargets = [];
+
+  if (typeof __dirname === "string" && __dirname) {
+    localTargets.push(path.join(__dirname, scriptFile));
+  }
+
+  localTargets.push(`./${scriptFile}`);
+
+  for (const target of localTargets) {
+    try {
+      return require(target);
+    } catch (error) {
+      if (!shouldFallbackToLocalRequire(error, target)) {
+        throw error;
+      }
+    }
+  }
+
+  throw new Error(`Unable to load script: ${scriptFile}`);
+}
+
+function shouldFallbackToLocalRequire(error, attemptedPath) {
+  if (!error) {
+    return false;
+  }
+
+  if (error.code && error.code !== "MODULE_NOT_FOUND") {
+    return false;
+  }
+
+  const message = error.message ?? "";
+  if (!message) {
+    return true;
+  }
+
+  return message.includes("MODULE_NOT_FOUND") && message.includes(attemptedPath);
 }
 
 const getUniversityConfig = requireScript("universityConfig.js");
