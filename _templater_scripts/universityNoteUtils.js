@@ -374,7 +374,7 @@ function universityNoteUtils() {
       return canonicalParcialesMap.get(FINAL_LABEL.toLowerCase()) ?? FINAL_LABEL;
     }
 
-    const parcialMatch = lowered.match(/parcial[\s_-]*(\d)/);
+    const parcialMatch = lowered.match(/parcial[\s_-]*(\d+)/);
     if (parcialMatch) {
       const normalizedKey = `parcial ${parcialMatch[1]}`.toLowerCase();
       if (canonicalParcialesMap.has(normalizedKey)) {
