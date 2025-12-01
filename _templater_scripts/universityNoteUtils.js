@@ -9,7 +9,7 @@
 const path = require("path");
 
 function requireScript(scriptFile) {
-  const vaultBasePath = app?.vault?.adapter?.basePath;
+  const vaultBasePath = typeof app !== "undefined" ? app?.vault?.adapter?.basePath : undefined;
   const scriptRelativePath = path.join("_templater_scripts", scriptFile);
 
   if (vaultBasePath) {
@@ -348,8 +348,9 @@ function universityNoteUtils() {
   }
 
   function toSlug(value = "") {
-    return value
-      ?.toString()
+    const stringValue = value == null ? "" : String(value);
+
+    return stringValue
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^\w\s-]/g, "")
