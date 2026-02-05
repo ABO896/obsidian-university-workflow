@@ -41,6 +41,7 @@ const placement = await resolveSubjectParcialTema(tp, {
   contextSubject,
   contextYear,
   includeParcial: false,
+  promptYearWhen: "always",
   contextTema,
 });
 

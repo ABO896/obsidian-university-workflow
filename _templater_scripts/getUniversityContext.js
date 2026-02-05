@@ -55,15 +55,20 @@ function getUniversityContext(targetFile) {
   const universityRootLower = UNIVERSITY_ROOT.toLowerCase();
   const uniIndex = pathParts.findIndex((part = "") => part.toLowerCase() === universityRootLower);
 
-  const subject =
-    uniIndex !== -1 && pathParts[uniIndex + 1] ? pathParts[uniIndex + 1] : GENERAL_LABEL;
+  const relativeParts = uniIndex === -1 ? pathParts : pathParts.slice(uniIndex + 1);
+  const frontmatterYear = app.metadataCache.getFileCache(targetFile)?.frontmatter?.year;
+  const pathYearCandidate = relativeParts.find((part = "") => normalizeYear(part, { allowLiteral: false }));
+  const year = normalizeYear(frontmatterYear) ?? normalizeYear(pathYearCandidate, { allowLiteral: false });
 
-  const searchParts = uniIndex === -1 ? pathParts : pathParts.slice(uniIndex + 1);
+  const firstSegment = relativeParts[0] ?? "";
+  const firstSegmentIsYear = !!normalizeYear(firstSegment, { allowLiteral: false });
+
+  const subjectCandidate = firstSegmentIsYear ? relativeParts[1] : relativeParts[0];
+  const subject = subjectCandidate || GENERAL_LABEL;
+
+  const searchParts = firstSegmentIsYear ? relativeParts.slice(1) : relativeParts;
   const parcialCandidate = searchParts.find((part = "") => normalizeParcial(part) !== GENERAL_LABEL);
   const parcial = normalizeParcial(parcialCandidate);
-  const frontmatterYear = app.metadataCache.getFileCache(targetFile)?.frontmatter?.year;
-  const pathYearCandidate = searchParts.find((part = "") => normalizeYear(part, { allowLiteral: false }));
-  const year = normalizeYear(frontmatterYear) ?? normalizeYear(pathYearCandidate, { allowLiteral: false });
 
   return { subject, year, parcial };
 }

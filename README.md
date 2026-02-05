@@ -103,9 +103,9 @@ Because templates read the config at runtime, you never hard-code translations�
 
 1. Create a new untitled note.
 2. Run **Lecture Note**; choose or create the subject when prompted.
-3. The helper reuses the subject's known year when possible; only prompts for year when missing or ambiguous.
+3. The helper asks for year and uses it as the top-level placement folder.
 4. Enter an optional lecture topic; the helper sanitizes it and builds the filename.
-5. The template moves the file into `<University>/<Subject>/<Tema?>`, adds frontmatter, and inserts structured sections.
+5. The template moves the file into `<University>/<Year>/<Subject>/<Tema?>`, adds frontmatter, and inserts structured sections.
 
 ```md
 ---
@@ -125,7 +125,7 @@ concepts: []
 1. Run **Concept Note Template** from any note (untitled or existing).
 2. Select the subject; create a new one if needed.
 3. Choose a tema or skip to keep it general.
-4. The helper moves the note into the proper subject/tema path.
+4. The helper moves the note into the proper year/subject/tema path.
 5. Fill in the definition, analogy, and explanation sections; Dataview shows related lectures automatically.
 
 ```md
@@ -165,7 +165,7 @@ aliases: ["Formula Sheet"]
 
 1. Create a new untitled note at any location.
 2. Run **Subject Hub**; pick or create the subject.
-3. The helper anchors the hub at `<University>/<Subject>/` and generates a safe filename.
+3. The helper anchors the hub at `<University>/<Year>/<Subject>/` and generates a safe filename.
 4. Frontmatter and tags are inserted, along with Dataview dashboards for lectures, concepts, years→temas, and tasks.
 5. Review the checklist and fill in the overview to keep your hub current.
 
@@ -198,11 +198,11 @@ tema: "Oscillations"
 
 | Template | Prompts for subject? | Prompts for year? | Prompts for tema? |
 | --- | --- | --- | --- |
-| Lecture Note | ✅ | ✅ (only when missing/ambiguous) | ✅ (with skip option) |
-| Concept Note | ✅ | ✅ (only when missing/ambiguous) | ✅ |
-| General Note | ✅ | ✅ (only when missing/ambiguous) | ✅ |
-| Subject Hub | ✅ | 🚫 | 🚫 (hubs stay at subject root) |
-| Assign Tema | ✅ | ✅ (only when missing/ambiguous) | ✅ |
+| Lecture Note | ✅ | ✅ | ✅ (with skip option) |
+| Concept Note | ✅ | ✅ | ✅ |
+| General Note | ✅ | ✅ | ✅ |
+| Subject Hub | ✅ | ✅ | 🚫 (hubs stay at subject root inside the selected year) |
+| Assign Tema | ✅ | ✅ | ✅ |
 </details>
 
 ## Repository Layout
@@ -212,7 +212,7 @@ _templates/
   Lecture Note.md          # Guided lecture capture with placement + sections
   Concept Note Template.md # Concept deep dives with Dataview backlinks
   General Note.md          # Flexible note with consistent metadata
-  Subject Hub.md           # Course dashboard anchored at subject root
+  Subject Hub.md           # Course dashboard anchored at year/subject root
   Assign Tema to Current Note.md # Utility to update existing notes
 _templater_scripts/
   universityConfig.js      # Central labels, folders, years, schema

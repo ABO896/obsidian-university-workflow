@@ -72,10 +72,11 @@ const placement = await resolveSubjectAndParcial(tp, {
   currentFile,
   contextSubject,
   includeParcial: false,
-  includeYear: false,
+  includeYear: true,
+  promptYearWhen: "always",
 });
 
-const { subject, subjectRootPath, baseUniversityPath } = placement ?? {};
+const { subject, year, subjectRootPath, baseUniversityPath } = placement ?? {};
 
 const targetRoot = subjectRootPath || baseUniversityPath;
 
@@ -85,6 +86,7 @@ if (!targetRoot) {
 }
 
 const selectedSubject = subject || generalLabel;
+const selectedYear = year?.toString().trim() || null;
 
 await ensureFolderPath(targetRoot);
 
@@ -109,6 +111,7 @@ const frontMatter = [
   "---",
   "type: subject-hub",
   `course: ${JSON.stringify(selectedSubject)}`,
+  selectedYear ? `year: ${JSON.stringify(selectedYear)}` : null,
   `created: ${JSON.stringify(created)}`,
   tagsLine,
   `updated: ${JSON.stringify(updated)}`,

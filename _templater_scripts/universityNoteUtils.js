@@ -192,6 +192,16 @@ function universityNoteUtils() {
     return sortCaseInsensitive(dedupePreserveOrder(listImmediateFolderNames(basePath)));
   }
 
+  function listYearFolders(basePath) {
+    return sortCaseInsensitive(
+      dedupePreserveOrder(
+        listImmediateFolderNames(basePath)
+          .map((folderName) => normalizeYear(folderName, { allowLiteral: false }))
+          .filter(Boolean)
+      )
+    );
+  }
+
   function reorderWithPreference(options = [], preferred = GENERAL_LABEL) {
     if (!preferred || preferred === GENERAL_LABEL) {
       return options;
@@ -270,7 +280,12 @@ function universityNoteUtils() {
     };
   }
 
-  function getTemaContext(basePath, subjectFolderName, parcialFolderName) {
+  function getTemaContext(
+    basePath,
+    subjectFolderName,
+    parcialFolderName,
+    { includeParcial = false } = {}
+  ) {
     const subjectPath = subjectFolderName ? pathJoin(basePath, subjectFolderName) : basePath;
 
     const resolveTemaContainer = (basePathForTemas) => {
@@ -294,7 +309,29 @@ function universityNoteUtils() {
       temaContainerPath = resolveTemaContainer(parcialFolderPath);
     }
 
-    const existingTemas = listImmediateFolderNames(temaContainerPath);
+    const existingTemasRaw = listImmediateFolderNames(temaContainerPath);
+    const existingTemas = existingTemasRaw.filter((name) => {
+      if (!name) {
+        return false;
+      }
+
+      if (includeParcial) {
+        return true;
+      }
+
+      const loweredName = name.toLowerCase();
+      const loweredParcialContainer = (PARCIAL_CONTAINER_NAME ?? "").toLowerCase();
+
+      if (loweredParcialContainer && loweredName === loweredParcialContainer) {
+        return false;
+      }
+
+      if (/^parciales?$/.test(loweredName)) {
+        return false;
+      }
+
+      return normalizeParcial(name) === GENERAL_LABEL;
+    });
 
     return {
       containerPath: temaContainerPath,
@@ -501,7 +538,68 @@ function universityNoteUtils() {
 
     const baseUniversityPath = getBaseUniversityPath(currentFile);
     const normalizedContextSubject = contextSubject ?? GENERAL_LABEL;
-    const subjectOptions = buildSubjectOptions(baseUniversityPath, normalizedContextSubject);
+    let yearOptions = [];
+    let year = includeYear ? normalizeYear(contextYear) : null;
+    let yearRootPath = baseUniversityPath;
+
+    if (includeYear) {
+      const discoveredYearFolders = listYearFolders(baseUniversityPath);
+      const configuredYearOptions = dedupePreserveOrder(
+        (Array.isArray(yearOptionsInput) ? yearOptionsInput : years)
+          .map((option) => normalizeYear(option))
+          .filter(Boolean)
+      );
+
+      yearOptions = reorderWithPreference(
+        dedupePreserveOrder([
+          ...(year ? [year] : []),
+          ...discoveredYearFolders,
+          ...configuredYearOptions,
+        ]),
+        year || discoveredYearFolders[0]
+      );
+
+      if (!year && discoveredYearFolders.length === 1) {
+        year = discoveredYearFolders[0];
+      }
+
+      const shouldPromptForYear =
+        promptYearWhen === "always" ||
+        (promptYearWhen !== "never" &&
+          !year &&
+          ((discoveredYearFolders.length > 1) ||
+            (promptYearWhen === "missing" &&
+              discoveredYearFolders.length === 0 &&
+              yearOptions.length > 0)));
+
+      if (shouldPromptForYear) {
+        const SKIP_YEAR_SENTINEL = "__skip_year__";
+        const yearLabelLower =
+          typeof YEAR_LABEL === "string" ? YEAR_LABEL.toLowerCase() : "year";
+        const allowSkipYear = promptYearWhen !== "always";
+        const displayOptions = allowSkipYear
+          ? [...yearOptions, `🚫 Skip ${yearLabelLower}`]
+          : [...yearOptions];
+        const valueOptions = allowSkipYear ? [...yearOptions, SKIP_YEAR_SENTINEL] : [...yearOptions];
+
+        const selectedYear = await tp.system.suggester(
+          displayOptions,
+          valueOptions,
+          false,
+          `Select ${YEAR_LABEL}`
+        );
+
+        year =
+          selectedYear === SKIP_YEAR_SENTINEL
+            ? null
+            : normalizeYear(selectedYear);
+      }
+
+      const yearFolderName = year ? sanitizeFolderName(year) : null;
+      yearRootPath = yearFolderName ? pathJoin(baseUniversityPath, yearFolderName) : baseUniversityPath;
+    }
+
+    const subjectOptions = buildSubjectOptions(yearRootPath, normalizedContextSubject);
     const NEW_SUBJECT_SENTINEL = "__new_subject__";
     const subjectLabelLower =
       typeof SUBJECT_LABEL === "string" ? SUBJECT_LABEL.toLowerCase() : "subject";
@@ -530,60 +628,8 @@ function universityNoteUtils() {
     const subjectFolderName =
       subject && subject !== GENERAL_LABEL ? sanitizeFolderName(subject) : null;
     const subjectRootPath = subjectFolderName
-      ? pathJoin(baseUniversityPath, subjectFolderName)
-      : baseUniversityPath;
-
-    let yearOptions = [];
-    let year = includeYear ? normalizeYear(contextYear) : null;
-
-    if (includeYear) {
-      const configuredYearOptions = dedupePreserveOrder(
-        (Array.isArray(yearOptionsInput) ? yearOptionsInput : years)
-          .map((option) => normalizeYear(option))
-          .filter(Boolean)
-      );
-      const discoveredYearOptions = subjectFolderName ? listSubjectYears(subjectRootPath) : [];
-
-      yearOptions = reorderWithPreference(
-        dedupePreserveOrder([
-          ...(year ? [year] : []),
-          ...discoveredYearOptions,
-          ...configuredYearOptions,
-        ]),
-        year || discoveredYearOptions[0]
-      );
-
-      if (!year && discoveredYearOptions.length === 1) {
-        year = discoveredYearOptions[0];
-      }
-
-      const shouldPromptForYear =
-        subjectFolderName &&
-        (promptYearWhen === "always" ||
-          (promptYearWhen !== "never" &&
-            !year &&
-            ((discoveredYearOptions.length > 1) ||
-              (promptYearWhen === "missing" &&
-                discoveredYearOptions.length === 0 &&
-                yearOptions.length > 0))));
-
-      if (shouldPromptForYear) {
-        const SKIP_YEAR_SENTINEL = "__skip_year__";
-        const yearLabelLower =
-          typeof YEAR_LABEL === "string" ? YEAR_LABEL.toLowerCase() : "year";
-        const displayOptions = [...yearOptions, `🚫 Skip ${yearLabelLower}`];
-        const valueOptions = [...yearOptions, SKIP_YEAR_SENTINEL];
-
-        const selectedYear = await tp.system.suggester(
-          displayOptions,
-          valueOptions,
-          false,
-          `Select ${YEAR_LABEL}`
-        );
-
-        year = selectedYear === SKIP_YEAR_SENTINEL ? null : normalizeYear(selectedYear);
-      }
-    }
+      ? pathJoin(yearRootPath, subjectFolderName)
+      : yearRootPath;
 
     let parcialOptions = [];
     let parcial = includeParcial ? normalizeParcial(contextParcial) : null;
@@ -602,14 +648,14 @@ function universityNoteUtils() {
         parcial && parcial !== GENERAL_LABEL ? sanitizeFolderName(parcial) : null;
 
       const { containerPath: parcialContainerPath } = getParcialContext(
-        baseUniversityPath,
+        yearRootPath,
         subjectFolderName ?? undefined
       );
 
-      targetFolder = parcialContainerPath || baseUniversityPath;
+      targetFolder = parcialContainerPath || yearRootPath;
 
       if (subjectFolderName && !(targetFolder?.includes(subjectFolderName))) {
-        targetFolder = pathJoin(baseUniversityPath, subjectFolderName);
+        targetFolder = pathJoin(yearRootPath, subjectFolderName);
       }
 
       if (parcialFolderName) {
@@ -617,12 +663,13 @@ function universityNoteUtils() {
       }
 
       if (!targetFolder) {
-        targetFolder = baseUniversityPath;
+        targetFolder = yearRootPath;
       }
     }
 
     return {
       baseUniversityPath,
+      yearRootPath,
       subject,
       subjectFolderName,
       subjectRootPath,
@@ -656,6 +703,7 @@ function universityNoteUtils() {
 
     const {
       baseUniversityPath,
+      yearRootPath,
       subjectFolderName,
       parcialFolderName,
       targetFolder: baseTargetFolder,
@@ -663,15 +711,17 @@ function universityNoteUtils() {
     } = placement ?? {};
 
     const temaContext = getTemaContext(
-      baseUniversityPath,
+      yearRootPath ?? baseUniversityPath,
       subjectFolderName ?? undefined,
-      includeParcial ? parcialFolderName ?? undefined : undefined
+      includeParcial ? parcialFolderName ?? undefined : undefined,
+      { includeParcial }
     );
 
     const temaContainerPath =
       temaContext?.containerPath ||
       baseTargetFolder ||
       subjectRootPath ||
+      yearRootPath ||
       baseUniversityPath;
 
     const existingTemas = temaContext?.existingTemas ?? [];
