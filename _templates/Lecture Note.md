@@ -1,6 +1,11 @@
 <%*
+// Depends on: _templater_scripts/getUniversityContext.js, _templater_scripts/universityNoteUtils.js, _templater_scripts/universityConfig.js
 // --- 0. GET THE TARGET FILE & CONTEXT ---
 const currentFile = tp.config.target_file;
+if (!currentFile) {
+  new Notice("⛔️ Abort: Templater has no target file.", 10_000);
+  return;
+}
 const getConfig = tp.user.universityConfig;
 const config = typeof getConfig === "function" ? await getConfig() : null;
 const configLabels = config?.labels ?? {};
@@ -64,11 +69,6 @@ await ensureFolderPath(targetFolder);
 const today = tp.date.now("YYYY-MM-DD");
 
 // --- 1. VALIDATION ---
-if (!currentFile) {
-  new Notice("⛔️ Abort: Templater has no target file.", 10_000);
-  return;
-}
-
 const basename = currentFile.basename.toLowerCase();
 if (!basename.startsWith("untitled") && !basename.startsWith("sin título")) {
   new Notice("⛔️ Abort: Template must be run in a new 'Untitled' note.", 10_000);
@@ -85,9 +85,10 @@ const noteTitle = rawTopic ? sanitizeFileName(`${baseTitle} - ${safeTopic}`) : b
 const headingTitle = rawTopic ? safeTopic : noteTitle;
 const extension = currentFile?.extension ?? "md";
 const finalFileName = ensureUniqueFileName(targetFolder, noteTitle, extension);
-const destinationPath = `${targetFolder}/${finalFileName}.${extension}`;
+const destinationFilePath = `${targetFolder}/${finalFileName}.${extension}`;
+const destinationMovePath = `${targetFolder}/${finalFileName}`;
 const needsMove =
-  currentFile?.parent?.path !== targetFolder || (currentFile?.basename ?? "") !== finalFileName;
+  currentFile?.path !== destinationFilePath;
 
 // --- 3. BUILD THE CONTENT ---
 const subjectSlug = toSlug(subject);
@@ -131,13 +132,13 @@ content += "```\n\n";
 content += "## 🧭 Explanation in My Own Words\n- [ ] Insight\n\n";
 content += "## 🔗 Connections\n- [ ] Related topic\n\n";
 content += "## 🧠 Questions I Still Have\n- [ ] Open question\n";
+content += `\n${tp.file.cursor()}`;
 
 tR = content;
 
 // --- 4. SET CURSOR & PLACE FILE ---
-tp.file.cursor();
 if (needsMove) {
-  await tp.file.move(destinationPath);
+  await tp.file.move(destinationMovePath);
 }
 new Notice(`📘 Lecture stored in ${targetFolder}`, 5_000);
 %>

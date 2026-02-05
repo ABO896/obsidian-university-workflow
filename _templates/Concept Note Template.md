@@ -1,5 +1,10 @@
 <%*
+// Depends on: _templater_scripts/getUniversityContext.js, _templater_scripts/universityNoteUtils.js, _templater_scripts/universityConfig.js
 const currentFile = tp.config.target_file;
+if (!currentFile) {
+  new Notice("⛔️ Abort: Templater has no target file.", 10_000);
+  return;
+}
 const context = await tp.user.getUniversityContext(currentFile);
 const getConfig = tp.user.universityConfig;
 const config = typeof getConfig === "function" ? await getConfig() : null;
@@ -61,11 +66,12 @@ const today = tp.date.now("YYYY-MM-DD");
 
 const extension = currentFile?.extension ?? "md";
 const finalFileName = ensureUniqueFileName(targetFolder, currentFile?.basename ?? "Untitled", extension);
-const destinationPath = `${targetFolder}/${finalFileName}.${extension}`;
-const needsMove = currentFile?.path !== destinationPath;
+const destinationFilePath = `${targetFolder}/${finalFileName}.${extension}`;
+const destinationMovePath = `${targetFolder}/${finalFileName}`;
+const needsMove = currentFile?.path !== destinationFilePath;
 
 if (needsMove) {
-  await tp.file.move(destinationPath);
+  await tp.file.move(destinationMovePath);
 }
 
 tR += [
@@ -90,8 +96,7 @@ tR += [
 ## 📜 Definition
 *A formal, textbook-style definition of the concept.*
 <%*
-tR += "- ";
-tp.file.cursor();
+tR += `- ${tp.file.cursor()}`;
 %>
 
 ## 🧠 Analogy or Metaphor

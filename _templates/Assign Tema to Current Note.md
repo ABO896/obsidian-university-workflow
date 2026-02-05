@@ -1,4 +1,5 @@
 <%*
+// Depends on: _templater_scripts/getUniversityContext.js, _templater_scripts/universityNoteUtils.js, _templater_scripts/universityConfig.js
 const currentFile = tp.config.target_file;
 if (!currentFile) {
   new Notice("⛔️ Abort: No active file to update.", 10_000);
@@ -11,7 +12,7 @@ const config = typeof getConfig === "function" ? await getConfig() : null;
 const configLabels = config?.labels ?? {};
 
 const { subject: contextSubjectRaw, year: contextYearRaw } = context ?? {};
-const contextTemaRaw = tp.frontmatter.tema;
+const contextTemaRaw = tp.frontmatter?.tema;
 
 const noteUtils = await tp.user.universityNoteUtils();
 const {
@@ -66,11 +67,12 @@ const tema = resolvedTema?.toString().trim() || generalLabel;
 const subject = resolvedSubject || generalLabel;
 
 const extension = currentFile.extension ?? "md";
-const destinationPath = `${targetFolder}/${currentFile.basename}.${extension}`;
-const needsMove = currentFile.path !== destinationPath;
+const destinationFilePath = `${targetFolder}/${currentFile.basename}.${extension}`;
+const destinationMovePath = `${targetFolder}/${currentFile.basename}`;
+const needsMove = currentFile.path !== destinationFilePath;
 
 if (needsMove) {
-  await tp.file.move(destinationPath);
+  await tp.file.move(destinationMovePath);
 }
 
 await app.fileManager.processFrontMatter(currentFile, (frontmatter) => {

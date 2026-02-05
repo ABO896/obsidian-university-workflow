@@ -30,7 +30,7 @@
 - Guardrails prevent misplaced notes, duplicate filenames, and missing frontmatter.
 - Dataview dashboards auto-populate hubs and concept backlinks once notes exist.
 - Shared helpers keep folder placement, slugging, and normalization consistent across templates.
-- Works on desktop Obsidian with Templater + Dataview; mobile-friendly once templates are installed.
+- Works on desktop Obsidian with Templater + Dataview; this workflow is desktop-only because it depends on Templater user functions.
 
 ## Why this exists (problem → solution in plain language)
 
@@ -54,6 +54,8 @@ University notes quickly sprawl across random folders, and every template tweak 
 5. Run a template (e.g., **Lecture Note**) from a new note and follow the prompts.
 
 > **Heads up:** Lecture notes and subject hubs refuse to run on pre-named files to avoid misfiling. Create a fresh note before launching them.
+>
+> **Docs source:** `Templater.pdf` in the vault root is the local reference used by this project for Templater behavior and API expectations.
 
 ## How it works
 
@@ -251,6 +253,7 @@ README.md                  # Documentation you are reading
 - Template aborts immediately → You likely ran it on a named file; start from an untitled note for Lecture or Subject Hub.
 - Helper not found → Re-check Templater script folder settings and reload user scripts.
 - Folders didn’t appear → Desktop Obsidian is required for folder creation; confirm filesystem permissions.
+- Template fails on mobile → Templater user functions (`tp.user.*`) are not available on Obsidian mobile.
 - Wrong year detected → Update frontmatter for that note or adjust `years` in config so normalization matches your naming.
 - Dataview outputs are empty → Ensure the plugin is enabled and notes contain the expected `type`, `course`, and tag metadata.
 - Tema assignment skipped → Run **Assign Tema** again and make sure you completed the prompts instead of cancelling.
@@ -261,7 +264,7 @@ README.md                  # Documentation you are reading
 
 **Do I need Dataview installed?** Yes, dashboards and concept backlink queries rely on it.
 
-**What about mobile?** Once the templates and scripts sync to mobile, Templater commands run fine (Obsidian Mobile doesn’t create folders silently, so sync from desktop first).
+**What about mobile?** This workflow is desktop-only. Templater user functions are unavailable on Obsidian mobile, and all templates here depend on `tp.user.*` scripts.
 
 **Can I add more years or temas?** Absolutely; update the `years` array and the helpers will normalize new values.
 

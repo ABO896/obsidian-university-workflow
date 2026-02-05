@@ -1,4 +1,5 @@
 <%*
+// Depends on: _templater_scripts/getUniversityContext.js, _templater_scripts/universityNoteUtils.js, _templater_scripts/universityConfig.js
 const currentFile = tp.config.target_file;
 const getConfig = tp.user.universityConfig;
 const config = typeof getConfig === "function" ? await getConfig() : null;
@@ -73,6 +74,7 @@ if (!basename.startsWith("untitled") && !basename.startsWith("sin título")) {
   const proceedChoice = await tp.system.suggester(
     ["Continue", "Cancel"],
     ["continue", "cancel"],
+    false,
     `Run ${generalNoteTitleLabel} on this existing file?`
   );
 
@@ -99,8 +101,9 @@ const safeTitle =
   generalNoteTitleLabel;
 const extension = currentFile?.extension ?? "md";
 const finalFileName = ensureUniqueFileName(targetFolder, safeTitle, extension);
-const destinationPath = `${targetFolder}/${finalFileName}.${extension}`;
-const needsMove = currentFile?.path !== destinationPath;
+const destinationFilePath = `${targetFolder}/${finalFileName}.${extension}`;
+const destinationMovePath = `${targetFolder}/${finalFileName}`;
+const needsMove = currentFile?.path !== destinationFilePath;
 
 const today = tp.date.now("YYYY-MM-DD");
 const subjectSlug = toSlug(selectedSubject);
@@ -137,10 +140,10 @@ if (inlineTags) {
   tR += `${inlineTags}\n\n`;
 }
 
-tp.file.cursor({ line: 999, ch: 0 });
+tR += tp.file.cursor();
 
 if (needsMove) {
-  await tp.file.move(destinationPath);
+  await tp.file.move(destinationMovePath);
 }
 
 new Notice(`📝 ${generalNoteNoticeLabel} stored in ${targetFolder}`, 5_000);

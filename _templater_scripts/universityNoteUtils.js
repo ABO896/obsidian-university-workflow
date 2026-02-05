@@ -577,6 +577,7 @@ function universityNoteUtils() {
         const selectedYear = await tp.system.suggester(
           displayOptions,
           valueOptions,
+          false,
           `Select ${YEAR_LABEL}`
         );
 
@@ -701,7 +702,7 @@ function universityNoteUtils() {
       valueOptions.push(SKIP_TEMA_SENTINEL);
 
       temaSelection =
-        (await tp.system.suggester(displayOptions, valueOptions, `Select ${TEMA_LABEL}`)) ??
+        (await tp.system.suggester(displayOptions, valueOptions, false, `Select ${TEMA_LABEL}`)) ??
         contextTema ??
         GENERAL_LABEL;
     }

@@ -1,4 +1,5 @@
 <%*
+// Depends on: _templater_scripts/getUniversityContext.js, _templater_scripts/universityNoteUtils.js, _templater_scripts/universityConfig.js
 const currentFile = tp.config.target_file;
 const context = await tp.user.getUniversityContext(currentFile);
 const getConfig = tp.user.universityConfig;
@@ -94,8 +95,9 @@ const displayTitle = `${selectedSubject} Hub`;
 const safeFileBase = sanitizeFileName(displayTitle) || "Subject Hub";
 const extension = currentFile?.extension ?? "md";
 const finalFileName = ensureUniqueFileName(targetRoot, safeFileBase, extension);
-const destinationPath = `${targetRoot}/${finalFileName}.${extension}`;
-const needsMove = currentFile?.path !== destinationPath;
+const destinationFilePath = `${targetRoot}/${finalFileName}.${extension}`;
+const destinationMovePath = `${targetRoot}/${finalFileName}`;
+const needsMove = currentFile?.path !== destinationFilePath;
 
 const timestamp = tp.date.now("YYYY-MM-DD");
 const created = timestamp;
@@ -120,7 +122,7 @@ const lines = [frontMatter];
 lines.push(`# 🧭 ${displayTitle}`);
 lines.push("");
 lines.push("## ✅ Overview");
-lines.push("- [ ] Course summary");
+lines.push(`- [ ] ${tp.file.cursor()}Course summary`);
 lines.push("- [ ] Key resources");
 lines.push("- [ ] Upcoming priorities");
 lines.push("");
@@ -249,13 +251,8 @@ lines.push("");
 
 tR = lines.join("\n");
 
-const summaryLineIndex = lines.findIndex((line) => line.includes("Course summary"));
-const cursorPosition =
-  summaryLineIndex >= 0 ? { line: summaryLineIndex, ch: 6 } : { line: 0, ch: 0 };
-tp.file.cursor(cursorPosition);
-
 if (needsMove) {
-  await tp.file.move(destinationPath);
+  await tp.file.move(destinationMovePath);
 }
 
 new Notice(`🗂️ Subject hub stored in ${targetRoot}`, 5_000);
