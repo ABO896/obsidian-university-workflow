@@ -9,7 +9,7 @@
 const path = require("path");
 
 function requireScript(scriptFile) {
-  const vaultBasePath = app?.vault?.adapter?.basePath;
+  const vaultBasePath = typeof app !== "undefined" ? app?.vault?.adapter?.basePath : undefined;
   const scriptRelativePath = path.join("_templater_scripts", scriptFile);
 
   if (vaultBasePath) {
@@ -352,8 +352,9 @@ function universityNoteUtils() {
   }
 
   function toSlug(value = "") {
-    return value
-      ?.toString()
+    const stringValue = value == null ? "" : String(value);
+
+    return stringValue
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^\w\s-]/g, "")
@@ -378,7 +379,7 @@ function universityNoteUtils() {
       return canonicalParcialesMap.get(FINAL_LABEL.toLowerCase()) ?? FINAL_LABEL;
     }
 
-    const parcialMatch = lowered.match(/parcial[\s_-]*(\d)/);
+    const parcialMatch = lowered.match(/parcial[\s_-]*(\d+)/);
     if (parcialMatch) {
       const normalizedKey = `parcial ${parcialMatch[1]}`.toLowerCase();
       if (canonicalParcialesMap.has(normalizedKey)) {
