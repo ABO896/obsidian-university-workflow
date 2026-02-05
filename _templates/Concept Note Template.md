@@ -9,7 +9,6 @@ const noteUtils = await tp.user.universityNoteUtils();
 const {
   ensureFolderPath,
   ensureUniqueFileName,
-  normalizeParcial,
   resolveSubjectParcialTema,
   constants = {},
 } = noteUtils ?? {};
@@ -30,25 +29,25 @@ if (!generalLabel) {
   return;
 }
 const contextSubject = context?.subject ?? generalLabel;
-const contextParcialBase = context?.parcial ?? generalLabel;
-const contextParcial = normalizeParcial ? normalizeParcial(contextParcialBase) : contextParcialBase;
+const contextYear = context?.year ?? tp.frontmatter?.year ?? null;
 
 const placement = await resolveSubjectParcialTema(tp, {
   currentFile,
   contextSubject,
-  contextParcial,
+  contextYear,
+  includeParcial: false,
   contextTema: generalLabel,
 });
 
 const {
   targetFolder,
   subject: resolvedSubject = generalLabel,
-  parcial: resolvedParcial = generalLabel,
+  year: resolvedYear = null,
   tema: resolvedTema = generalLabel,
 } = placement ?? {};
 
 const selectedSubject = resolvedSubject || generalLabel;
-const selectedParcial = normalizeParcial(resolvedParcial);
+const selectedYear = resolvedYear?.toString().trim() || null;
 const selectedTema = resolvedTema?.toString().trim() || generalLabel;
 
 if (!targetFolder) {
@@ -74,14 +73,16 @@ tR += [
   "type: concept",
   "tags: [concept]",
   `course: ${JSON.stringify(selectedSubject)}`,
-  `parcial: ${JSON.stringify(selectedParcial)}`,
+  selectedYear ? `year: ${JSON.stringify(selectedYear)}` : null,
   `tema: ${JSON.stringify(selectedTema)}`,
   `created: ${JSON.stringify(today)}`,
   "status: draft",
   "aliases: []",
   "---",
   "",
-].join("\n");
+]
+  .filter(Boolean)
+  .join("\n");
 %>
 
 # 💡 <% tp.file.title %>

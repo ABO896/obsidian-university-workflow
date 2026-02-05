@@ -2,7 +2,7 @@
   universityNoteUtils.js
 
   Shared helper utilities for Templater scripts that manage university note
-  destinations. The helpers discover subjects/parcials dynamically based on the
+  destinations. The helpers discover subjects/years dynamically based on the
   current vault structure and provide filesystem utilities for moving notes.
 */
 
@@ -72,6 +72,7 @@ function universityNoteUtils() {
 
   const fsConfig = config.fs ?? {};
   const labels = config.labels ?? {};
+  const years = Array.isArray(config.years) ? [...config.years] : [];
   const parciales = Array.isArray(config.parciales) ? [...config.parciales] : [];
   const schema = config.schema ?? {};
 
@@ -83,26 +84,19 @@ function universityNoteUtils() {
     throw new Error("University config must define fs.universityRoot.");
   }
 
-  if (!fsConfig.parcialContainer) {
-    throw new Error("University config must define fs.parcialContainer.");
-  }
-
   if (!fsConfig.temaContainer) {
     throw new Error("University config must define fs.temaContainer.");
-  }
-
-  if (parciales.length === 0) {
-    throw new Error("University config must define at least one parcial value.");
   }
 
   const GENERAL_LABEL = labels.general;
   const FINAL_LABEL = labels.final ?? parciales.find((value) => /final/i.test(value)) ?? labels.general;
   const SUBJECT_LABEL = labels.subject ?? "Subject";
+  const YEAR_LABEL = labels.year ?? "Year";
   const TEMA_LABEL = labels.tema ?? "Tema";
   const PARCIAL_LABEL = labels.parcial ?? "Parcial";
 
   const DEFAULT_BASE_PATH = fsConfig.universityRoot;
-  const PARCIAL_CONTAINER_NAME = fsConfig.parcialContainer;
+  const PARCIAL_CONTAINER_NAME = fsConfig.parcialContainer ?? "Parciales";
   const TEMA_CONTAINER_NAME = fsConfig.temaContainer;
 
   const canonicalParcialesMap = new Map();
@@ -113,6 +107,16 @@ function universityNoteUtils() {
 
     const lowered = entry.toString().toLowerCase();
     canonicalParcialesMap.set(lowered, entry);
+  }
+
+  const canonicalYearsMap = new Map();
+  for (const entry of years) {
+    if (!entry) {
+      continue;
+    }
+
+    const lowered = entry.toString().toLowerCase();
+    canonicalYearsMap.set(lowered, entry);
   }
 
   function pathJoin(...segments) {
@@ -389,15 +393,105 @@ function universityNoteUtils() {
     return GENERAL_LABEL;
   }
 
+  function parseYearCandidate(value) {
+    const trimmed = value?.toString().trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    const lowered = trimmed.toLowerCase();
+
+    if (canonicalYearsMap.has(lowered)) {
+      return canonicalYearsMap.get(lowered) ?? null;
+    }
+
+    const patterns = [
+      /(?:year|yr|ano|y)[\s_-]*(\d{1,2})/i,
+      /(\d{1,2})(?:st|nd|rd|th)?[\s_-]*(?:year|yr|ano)/i,
+    ];
+
+    for (const pattern of patterns) {
+      const match = lowered.match(pattern);
+      const number = match?.[1];
+      if (!number) {
+        continue;
+      }
+
+      const canonicalKey = `year ${Number.parseInt(number, 10)}`.toLowerCase();
+      if (canonicalYearsMap.has(canonicalKey)) {
+        return canonicalYearsMap.get(canonicalKey) ?? null;
+      }
+
+      return `Year ${Number.parseInt(number, 10)}`;
+    }
+
+    return null;
+  }
+
+  function normalizeYear(year, { allowLiteral = true } = {}) {
+    const parsed = parseYearCandidate(year);
+    if (parsed) {
+      return parsed;
+    }
+
+    const trimmed = year?.toString().trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    if (!allowLiteral || trimmed.toLowerCase() === GENERAL_LABEL.toLowerCase()) {
+      return null;
+    }
+
+    return trimmed;
+  }
+
+  function listSubjectYears(subjectRootPath) {
+    if (!subjectRootPath) {
+      return [];
+    }
+
+    const files = app.vault.getMarkdownFiles?.() ?? [];
+    const prefix = `${subjectRootPath}/`;
+    const yearValues = [];
+
+    for (const file of files) {
+      const filePath = file?.path ?? "";
+      if (!filePath || (filePath !== subjectRootPath && !filePath.startsWith(prefix))) {
+        continue;
+      }
+
+      const cache = app.metadataCache.getFileCache(file);
+      const frontmatterYear = normalizeYear(cache?.frontmatter?.year);
+      if (frontmatterYear) {
+        yearValues.push(frontmatterYear);
+      }
+
+      const pathParts = filePath.split("/").filter(Boolean);
+      for (const part of pathParts) {
+        const pathYear = parseYearCandidate(part);
+        if (pathYear) {
+          yearValues.push(pathYear);
+        }
+      }
+    }
+
+    return sortCaseInsensitive(dedupePreserveOrder(yearValues));
+  }
+
   async function resolveSubjectAndParcial(
     tp,
     {
       currentFile,
       contextSubject = GENERAL_LABEL,
       contextParcial = GENERAL_LABEL,
+      contextYear = null,
       parcialOptions: parcialOptionsInput,
+      yearOptions: yearOptionsInput,
       allowNewSubject = true,
-      includeParcial = true,
+      includeParcial = false,
+      includeYear = true,
+      promptYearWhen = "missing",
     } = {}
   ) {
     if (!tp) {
@@ -437,6 +531,57 @@ function universityNoteUtils() {
     const subjectRootPath = subjectFolderName
       ? pathJoin(baseUniversityPath, subjectFolderName)
       : baseUniversityPath;
+
+    let yearOptions = [];
+    let year = includeYear ? normalizeYear(contextYear) : null;
+
+    if (includeYear) {
+      const configuredYearOptions = dedupePreserveOrder(
+        (Array.isArray(yearOptionsInput) ? yearOptionsInput : years)
+          .map((option) => normalizeYear(option))
+          .filter(Boolean)
+      );
+      const discoveredYearOptions = subjectFolderName ? listSubjectYears(subjectRootPath) : [];
+
+      yearOptions = reorderWithPreference(
+        dedupePreserveOrder([
+          ...(year ? [year] : []),
+          ...discoveredYearOptions,
+          ...configuredYearOptions,
+        ]),
+        year || discoveredYearOptions[0]
+      );
+
+      if (!year && discoveredYearOptions.length === 1) {
+        year = discoveredYearOptions[0];
+      }
+
+      const shouldPromptForYear =
+        subjectFolderName &&
+        (promptYearWhen === "always" ||
+          (promptYearWhen !== "never" &&
+            !year &&
+            ((discoveredYearOptions.length > 1) ||
+              (promptYearWhen === "missing" &&
+                discoveredYearOptions.length === 0 &&
+                yearOptions.length > 0))));
+
+      if (shouldPromptForYear) {
+        const SKIP_YEAR_SENTINEL = "__skip_year__";
+        const yearLabelLower =
+          typeof YEAR_LABEL === "string" ? YEAR_LABEL.toLowerCase() : "year";
+        const displayOptions = [...yearOptions, `🚫 Skip ${yearLabelLower}`];
+        const valueOptions = [...yearOptions, SKIP_YEAR_SENTINEL];
+
+        const selectedYear = await tp.system.suggester(
+          displayOptions,
+          valueOptions,
+          `Select ${YEAR_LABEL}`
+        );
+
+        year = selectedYear === SKIP_YEAR_SENTINEL ? null : normalizeYear(selectedYear);
+      }
+    }
 
     let parcialOptions = [];
     let parcial = includeParcial ? normalizeParcial(contextParcial) : null;
@@ -479,6 +624,8 @@ function universityNoteUtils() {
       subject,
       subjectFolderName,
       subjectRootPath,
+      year,
+      yearOptions,
       parcial,
       parcialFolderName,
       parcialOptions,
@@ -489,7 +636,7 @@ function universityNoteUtils() {
   async function resolveSubjectParcialTema(
     tp,
     {
-      includeParcial = true,
+      includeParcial = false,
       includeTema = true,
       contextTema = GENERAL_LABEL,
       allowNewTema = true,
@@ -590,6 +737,7 @@ function universityNoteUtils() {
     general: GENERAL_LABEL,
     final: FINAL_LABEL,
     subject: SUBJECT_LABEL,
+    year: YEAR_LABEL,
     tema: TEMA_LABEL,
     parcial: PARCIAL_LABEL,
     universityRoot: DEFAULT_BASE_PATH,
@@ -601,6 +749,7 @@ function universityNoteUtils() {
     config,
     fsConfig,
     labels,
+    years,
     parciales,
     schema,
     constants,
@@ -617,6 +766,7 @@ function universityNoteUtils() {
     sanitizeFolderName,
     sanitizeFileName,
     toSlug,
+    normalizeYear,
     normalizeParcial,
     reorderWithPreference,
     reorderOptions: reorderWithPreference,

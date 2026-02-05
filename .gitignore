@@ -9,6 +9,13 @@
 !_templates/**
 !README.md
 !.gitignore
+!AGENTS.md
 
 # Ignore macOS system files
 **/.DS_Store
+
+
+
+
+# Ignore Smart Environment folder
+.smart-env

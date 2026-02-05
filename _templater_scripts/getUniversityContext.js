@@ -1,7 +1,7 @@
 /*
   getUniversityContext.js
 
-  Reusable Templater user script that infers academic context (subject & parcial)
+  Reusable Templater user script that infers academic context (subject & year)
   from the current file's location inside the vault.
 */
 
@@ -39,16 +39,16 @@ if (!UNIVERSITY_ROOT) {
   throw new Error("University config must define fs.universityRoot.");
 }
 
-const { normalizeParcial } = createUniversityNoteUtils();
+const { normalizeParcial, normalizeYear } = createUniversityNoteUtils();
 
 function getUniversityContext(targetFile) {
   if (!targetFile) {
-    return { subject: GENERAL_LABEL, parcial: GENERAL_LABEL };
+    return { subject: GENERAL_LABEL, year: null, parcial: GENERAL_LABEL };
   }
 
   const parentPath = targetFile.parent?.path ?? "";
   if (!parentPath) {
-    return { subject: GENERAL_LABEL, parcial: GENERAL_LABEL };
+    return { subject: GENERAL_LABEL, year: null, parcial: GENERAL_LABEL };
   }
 
   const pathParts = parentPath.split("/").filter(Boolean);
@@ -61,8 +61,11 @@ function getUniversityContext(targetFile) {
   const searchParts = uniIndex === -1 ? pathParts : pathParts.slice(uniIndex + 1);
   const parcialCandidate = searchParts.find((part = "") => normalizeParcial(part) !== GENERAL_LABEL);
   const parcial = normalizeParcial(parcialCandidate);
+  const frontmatterYear = app.metadataCache.getFileCache(targetFile)?.frontmatter?.year;
+  const pathYearCandidate = searchParts.find((part = "") => normalizeYear(part, { allowLiteral: false }));
+  const year = normalizeYear(frontmatterYear) ?? normalizeYear(pathYearCandidate, { allowLiteral: false });
 
-  return { subject, parcial };
+  return { subject, year, parcial };
 }
 
 module.exports = getUniversityContext;

@@ -19,7 +19,6 @@ const {
   ensureFolderPath,
   resolveSubjectAndParcial,
   toSlug,
-  normalizeParcial,
   labels: helperLabels,
   constants = {},
   fsConfig: helperFsConfig,
@@ -48,13 +47,8 @@ if (!generalLabel) {
 }
 const labels = helperLabels ?? configLabels;
 const fsConfig = helperFsConfig ?? configFs;
-const parcialLabel = labels?.parcial ?? "Parcial";
+const yearLabel = labels?.year ?? "Year";
 const temaLabel = labels?.tema ?? "Tema";
-const parcialContainerName =
-  constants?.parcialContainer ??
-  fsConfig?.parcialContainer ??
-  configFs?.parcialContainer ??
-  (typeof parcialLabel === "string" ? `${parcialLabel}s` : parcialLabel);
 const temaContainerName =
   constants?.temaContainer ??
   fsConfig?.temaContainer ??
@@ -72,15 +66,12 @@ const temaPluralLower =
 const noTemasMessage = `No ${temaPluralLower} recorded yet.`;
 
 const contextSubject = context?.subject ?? generalLabel;
-const contextParcial = normalizeParcial
-  ? normalizeParcial(context?.parcial ?? generalLabel)
-  : context?.parcial ?? generalLabel;
 
 const placement = await resolveSubjectAndParcial(tp, {
   currentFile,
   contextSubject,
-  contextParcial,
   includeParcial: false,
+  includeYear: false,
 });
 
 const { subject, subjectRootPath, baseUniversityPath } = placement ?? {};
@@ -121,7 +112,9 @@ const frontMatter = [
   `updated: ${JSON.stringify(updated)}`,
   "---",
   "",
-].join("\n");
+]
+  .filter(Boolean)
+  .join("\n");
 
 const lines = [frontMatter];
 lines.push(`# 🧭 ${displayTitle}`);
@@ -132,13 +125,13 @@ lines.push("- [ ] Key resources");
 lines.push("- [ ] Upcoming priorities");
 lines.push("");
 const generalLiteral = JSON.stringify(generalLabel);
-const parcialColumnLabel = JSON.stringify(parcialLabel);
+const yearColumnLabel = JSON.stringify(yearLabel);
 const temaIndexTitle = `${temaContainerName} Index`;
-const parcialesToTemasTitle = `${parcialContainerName} → ${temaContainerName}`;
+const yearsToTemasTitle = `${yearLabel} → ${temaContainerName}`;
 
 lines.push("## 📘 Lectures");
 lines.push("```dataview");
-lines.push(`TABLE default(created, default(date, file.ctime)) AS "Created", default(parcial, ${generalLiteral}) AS ${parcialColumnLabel}`);
+lines.push(`TABLE default(created, default(date, file.ctime)) AS \"Created\", default(year, ${generalLiteral}) AS ${yearColumnLabel}`);
 lines.push('FROM ""');
 lines.push('WHERE course = this.course AND type = "lecture"');
 lines.push('SORT default(created, default(date, file.ctime)) DESC');
@@ -146,22 +139,22 @@ lines.push("```");
 lines.push("");
 lines.push("## 💡 Concepts");
 lines.push("```dataview");
-lines.push('TABLE default(created, default(date, file.ctime)) AS "Created"');
+lines.push(`TABLE default(created, default(date, file.ctime)) AS \"Created\", default(year, ${generalLiteral}) AS ${yearColumnLabel}`);
 lines.push('FROM ""');
 lines.push('WHERE course = this.course AND type = "concept"');
 lines.push('SORT default(created, default(date, file.ctime)) DESC');
 lines.push("```");
 lines.push("");
-lines.push(`## 🗂️ Notes by ${parcialLabel}`);
+lines.push(`## 🗂️ Notes by ${yearLabel}`);
 lines.push("```dataview");
 lines.push('TABLE WITHOUT ID rows.file.link AS "Notes"');
 lines.push('FROM ""');
 lines.push('WHERE course = this.course AND contains(["lecture", "concept", "general"], type)');
-lines.push(`GROUP BY default(parcial, ${generalLiteral})`);
+lines.push(`GROUP BY default(year, ${generalLiteral})`);
 lines.push('SORT key ASC');
 lines.push("```");
 lines.push("");
-lines.push(`## 🧭 ${parcialesToTemasTitle}`);
+lines.push(`## 🧭 ${yearsToTemasTitle}`);
 lines.push("```dataviewjs");
 lines.push(String.raw`const current = dv.current();
 const targetCourse = current.course ?? ${generalLiteral};
@@ -180,22 +173,22 @@ if (pages.length === 0) {
   const groupMap = new Map();
 
   for (const page of pages) {
-    const parcialKey = (page.parcial ?? ${generalLiteral}) || ${generalLiteral};
+    const yearKey = (page.year ?? ${generalLiteral}) || ${generalLiteral};
     const temaKey = (page.tema ?? ${generalLiteral}) || ${generalLiteral};
-    const entry = { page, parcialKey, temaKey };
-    if (!groupMap.has(parcialKey)) {
-      groupMap.set(parcialKey, []);
+    const entry = { page, yearKey, temaKey };
+    if (!groupMap.has(yearKey)) {
+      groupMap.set(yearKey, []);
     }
-    groupMap.get(parcialKey).push(entry);
+    groupMap.get(yearKey).push(entry);
   }
 
-  const parcialKeys = Array.from(groupMap.keys()).sort((a, b) =>
+  const yearKeys = Array.from(groupMap.keys()).sort((a, b) =>
     a.localeCompare(b, undefined, { sensitivity: "base" })
   );
 
-  for (const parcialKey of parcialKeys) {
-    dv.header(3, ${JSON.stringify(`${parcialLabel}: `)} + parcialKey);
-    const entries = groupMap.get(parcialKey) ?? [];
+  for (const yearKey of yearKeys) {
+    dv.header(3, ${JSON.stringify(`${yearLabel}: `)} + yearKey);
+    const entries = groupMap.get(yearKey) ?? [];
     const temaMap = new Map();
 
     for (const entry of entries) {

@@ -10,14 +10,13 @@ const getConfig = tp.user.universityConfig;
 const config = typeof getConfig === "function" ? await getConfig() : null;
 const configLabels = config?.labels ?? {};
 
-const { subject: contextSubjectRaw, parcial: contextParcialRaw } = context ?? {};
+const { subject: contextSubjectRaw, year: contextYearRaw } = context ?? {};
 const contextTemaRaw = tp.frontmatter.tema;
 
 const noteUtils = await tp.user.universityNoteUtils();
 const {
   ensureFolderPath,
   toSlug,
-  normalizeParcial,
   resolveSubjectParcialTema,
   constants = {},
 } = noteUtils ?? {};
@@ -34,13 +33,13 @@ if (!generalLabel) {
 }
 const contextTema = contextTemaRaw ?? generalLabel;
 const contextSubject = contextSubjectRaw ?? generalLabel;
-const contextParcialBase = contextParcialRaw ?? generalLabel;
-const contextParcial = normalizeParcial ? normalizeParcial(contextParcialBase) : contextParcialBase;
+const contextYear = contextYearRaw ?? tp.frontmatter?.year ?? null;
 
 const placement = await resolveSubjectParcialTema(tp, {
   currentFile,
   contextSubject,
-  contextParcial,
+  contextYear,
+  includeParcial: false,
   contextTema,
 });
 
@@ -52,7 +51,7 @@ if (!placement) {
 const {
   targetFolder,
   subject: resolvedSubject = generalLabel,
-  parcial: resolvedParcial = generalLabel,
+  year: resolvedYear = null,
   tema: resolvedTema = generalLabel,
 } = placement;
 
@@ -63,7 +62,6 @@ if (!targetFolder) {
 
 await ensureFolderPath(targetFolder);
 
-const normalizedParcial = normalizeParcial(resolvedParcial);
 const tema = resolvedTema?.toString().trim() || generalLabel;
 const subject = resolvedSubject || generalLabel;
 
@@ -77,7 +75,11 @@ if (needsMove) {
 
 await app.fileManager.processFrontMatter(currentFile, (frontmatter) => {
   frontmatter.course = subject;
-  frontmatter.parcial = normalizedParcial;
+  if (resolvedYear) {
+    frontmatter.year = resolvedYear;
+  } else {
+    delete frontmatter.year;
+  }
   frontmatter.tema = tema;
 });
 
@@ -91,7 +93,7 @@ const tagSummary = [
   .join(" ");
 
 new Notice(
-  `🏷️ Assigned ${subject} / ${normalizedParcial} / ${tema}${tagSummary ? ` (${tagSummary})` : ""}`,
+  `🏷️ Assigned ${subject}${resolvedYear ? ` / ${resolvedYear}` : ""} / ${tema}${tagSummary ? ` (${tagSummary})` : ""}`,
   5_000
 );
 %>

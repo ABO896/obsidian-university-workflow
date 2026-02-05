@@ -13,7 +13,6 @@ const {
   ensureUniqueFileName,
   sanitizeFileName,
   toSlug,
-  normalizeParcial,
   resolveSubjectParcialTema,
   constants = {},
 } = noteUtils ?? {};
@@ -34,25 +33,25 @@ if (!generalLabel) {
   return;
 }
 const contextSubject = context?.subject ?? generalLabel;
-const contextParcialBase = context?.parcial ?? generalLabel;
-const contextParcial = normalizeParcial ? normalizeParcial(contextParcialBase) : contextParcialBase;
+const contextYear = context?.year ?? tp.frontmatter?.year ?? null;
 
 const placement = await resolveSubjectParcialTema(tp, {
   currentFile,
   contextSubject,
-  contextParcial,
+  contextYear,
+  includeParcial: false,
   contextTema: generalLabel,
 });
 
 const {
   targetFolder,
   subject: resolvedSubject = generalLabel,
-  parcial: resolvedParcial = generalLabel,
+  year: resolvedYear = null,
   tema: resolvedTema = generalLabel,
 } = placement ?? {};
 
 const subject = resolvedSubject || generalLabel;
-const parcial = normalizeParcial(resolvedParcial);
+const year = resolvedYear?.toString().trim() || null;
 const tema = resolvedTema?.toString().trim() || generalLabel;
 
 if (!targetFolder) {
@@ -107,7 +106,7 @@ const created = today;
 const frontMatter = [
   "---",
   `course: ${JSON.stringify(subject)}`,
-  `parcial: ${JSON.stringify(parcial)}`,
+  year ? `year: ${JSON.stringify(year)}` : null,
   `tema: ${JSON.stringify(tema)}`,
   "type: lecture",
   `created: ${JSON.stringify(created)}`,
@@ -115,7 +114,9 @@ const frontMatter = [
   `aliases: [${alias}]`,
   "concepts: []",
   "---",
-].join("\n");
+]
+  .filter(Boolean)
+  .join("\n");
 
 let content = `${frontMatter}\n`;
 content += lectureTags ? `${lectureTags}\n\n` : "";
