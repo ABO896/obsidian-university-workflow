@@ -98,6 +98,7 @@ function universityNoteUtils() {
   const DEFAULT_BASE_PATH = fsConfig.universityRoot;
   const PARCIAL_CONTAINER_NAME = fsConfig.parcialContainer ?? "Parciales";
   const TEMA_CONTAINER_NAME = fsConfig.temaContainer;
+  const codeLanguage = typeof config.codeLanguage === "string" ? config.codeLanguage : "";
 
   const canonicalParcialesMap = new Map();
   for (const entry of parciales) {
@@ -790,8 +791,6 @@ function universityNoteUtils() {
       targetFolder,
     };
   }
-
-  const codeLanguage = typeof config.codeLanguage === "string" ? config.codeLanguage : "";
 
   const constants = {
     general: GENERAL_LABEL,

@@ -52,6 +52,18 @@ const noteTypes = schema?.types ?? {};
 const lectureType = noteTypes.lecture ?? "lecture";
 const codeLanguage = constants?.codeLanguage ?? "";
 
+// Map language identifiers to their single-line comment prefix.
+// Defaults to '//' for unknown or empty (generic) code blocks.
+const lineCommentPrefix = {
+  python: "#", py: "#",
+  ruby: "#", rb: "#",
+  bash: "#", sh: "#", zsh: "#", shell: "#",
+  r: "#", perl: "#",
+  lua: "--", sql: "--",
+  haskell: "--", hs: "--",
+  matlab: "%", m: "%",
+}[codeLanguage.toLowerCase()] ?? "//";
+
 const contextSubject = context?.subject ?? generalLabel;
 const contextYear = context?.year ?? tp.frontmatter?.year ?? null;
 
@@ -135,7 +147,7 @@ content += "## 📚 Definitions\n- [ ] Term :: Definition\n\n";
 content += "## 🧩 Key Concepts\n- [ ] Concept :: Insight\n\n";
 content += "## 💡 Examples or Code\n";
 content += `\`\`\`${codeLanguage}\n`;
-content += `// ${safeTopic}\n`;
+content += `${lineCommentPrefix} ${safeTopic}\n`;
 content += "```\n\n";
 content += "## 🧭 Explanation in My Own Words\n- [ ] Insight\n\n";
 content += "## 🔗 Connections\n- [ ] Related topic\n\n";
