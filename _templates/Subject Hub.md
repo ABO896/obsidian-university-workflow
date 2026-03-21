@@ -1,6 +1,20 @@
 <%*
 // Depends on: _templater_scripts/getUniversityContext.js, _templater_scripts/universityNoteUtils.js, _templater_scripts/universityConfig.js
+
+// --- 0. GUARD: must run on a fresh Untitled note ---
 const currentFile = tp.config.target_file;
+if (!currentFile) {
+  new Notice("⛔️ Abort: Templater has no target file.", 10_000);
+  return;
+}
+
+const basename = (currentFile.basename ?? "").toLowerCase();
+if (!basename.startsWith("untitled") && !basename.startsWith("sin título")) {
+  new Notice("⛔️ Abort: Template must be run in a new 'Untitled' note.", 10_000);
+  return;
+}
+
+// --- 1. LOAD UTILITIES ---
 const context = await tp.user.getUniversityContext(currentFile);
 const getConfig = tp.user.universityConfig;
 const config = typeof getConfig === "function" ? await getConfig() : null;
@@ -23,21 +37,11 @@ const {
   labels: helperLabels,
   constants = {},
   fsConfig: helperFsConfig,
+  schema = {},
 } = noteUtils ?? {};
 
 if (!resolveSubjectAndParcial) {
   new Notice("⛔️ Abort: Placement helper is unavailable.", 10_000);
-  return;
-}
-
-if (!currentFile) {
-  new Notice("⛔️ Abort: Templater has no target file.", 10_000);
-  return;
-}
-
-const basename = (currentFile.basename ?? "").toLowerCase();
-if (!basename.startsWith("untitled") && !basename.startsWith("sin título")) {
-  new Notice("⛔️ Abort: Template must be run in a new 'Untitled' note.", 10_000);
   return;
 }
 
@@ -46,6 +50,13 @@ if (!generalLabel) {
   new Notice("⛔️ Abort: University general label is not configured.", 10_000);
   return;
 }
+
+const noteTypes = schema?.types ?? {};
+const lectureType = noteTypes.lecture ?? "lecture";
+const conceptType = noteTypes.concept ?? "concept";
+const generalType = noteTypes.general ?? "general";
+const hubType = noteTypes["subject-hub"] ?? "subject-hub";
+
 const labels = helperLabels ?? configLabels;
 const fsConfig = helperFsConfig ?? configFs;
 const yearLabel = labels?.year ?? "Year";
@@ -68,6 +79,7 @@ const noTemasMessage = `No ${temaPluralLower} recorded yet.`;
 
 const contextSubject = context?.subject ?? generalLabel;
 
+// --- 2. RESOLVE PLACEMENT (shows year → subject dialogs) ---
 const placement = await resolveSubjectAndParcial(tp, {
   currentFile,
   contextSubject,
@@ -90,6 +102,7 @@ const selectedYear = year?.toString().trim() || null;
 
 await ensureFolderPath(targetRoot);
 
+// --- 3. BUILD FILE NAME ---
 const subjectSlug = toSlug(selectedSubject || generalLabel);
 const courseTag = subjectSlug ? `course/${subjectSlug}` : null;
 
@@ -101,15 +114,16 @@ const destinationFilePath = `${targetRoot}/${finalFileName}.${extension}`;
 const destinationMovePath = `${targetRoot}/${finalFileName}`;
 const needsMove = currentFile?.path !== destinationFilePath;
 
+// --- 4. BUILD CONTENT ---
 const timestamp = tp.date.now("YYYY-MM-DD");
 const created = timestamp;
 const updated = timestamp;
-const tags = [courseTag, "subject-hub"].filter(Boolean).map((tag) => JSON.stringify(tag));
+const tags = [courseTag, hubType].filter(Boolean).map((tag) => JSON.stringify(tag));
 const tagsLine = `tags: [${tags.join(", ")}]`;
 
 const frontMatter = [
   "---",
-  "type: subject-hub",
+  `type: ${hubType}`,
   `course: ${JSON.stringify(selectedSubject)}`,
   selectedYear ? `year: ${JSON.stringify(selectedYear)}` : null,
   `created: ${JSON.stringify(created)}`,
@@ -121,6 +135,16 @@ const frontMatter = [
   .filter(Boolean)
   .join("\n");
 
+// Interpolated values used inside Dataview blocks
+const generalLiteral = JSON.stringify(generalLabel);
+const yearColumnLabel = JSON.stringify(yearLabel);
+const temaIndexTitle = `${temaContainerName} Index`;
+const yearsToTemasTitle = `${yearLabel} → ${temaContainerName}`;
+// Dataview source scoped to the university root for performance (avoids vault-wide scan).
+const dvSource = JSON.stringify(baseUniversityPath ?? "");
+// Allowed note types filter — built from config so it tracks any type renames.
+const allowedTypesLiteral = JSON.stringify([lectureType, conceptType, generalType]);
+
 const lines = [frontMatter];
 lines.push(`# 🧭 ${displayTitle}`);
 lines.push("");
@@ -129,45 +153,44 @@ lines.push(`- [ ] ${tp.file.cursor()}Course summary`);
 lines.push("- [ ] Key resources");
 lines.push("- [ ] Upcoming priorities");
 lines.push("");
-const generalLiteral = JSON.stringify(generalLabel);
-const yearColumnLabel = JSON.stringify(yearLabel);
-const temaIndexTitle = `${temaContainerName} Index`;
-const yearsToTemasTitle = `${yearLabel} → ${temaContainerName}`;
 
 lines.push("## 📘 Lectures");
 lines.push("```dataview");
-lines.push(`TABLE default(created, default(date, file.ctime)) AS \"Created\", default(year, ${generalLiteral}) AS ${yearColumnLabel}`);
-lines.push('FROM ""');
-lines.push('WHERE course = this.course AND type = "lecture"');
+lines.push(`TABLE default(created, default(date, file.ctime)) AS "Created", default(year, ${generalLiteral}) AS ${yearColumnLabel}`);
+lines.push(`FROM ${dvSource}`);
+lines.push(`WHERE course = this.course AND type = "${lectureType}"`);
 lines.push('SORT default(created, default(date, file.ctime)) DESC');
 lines.push("```");
 lines.push("");
+
 lines.push("## 💡 Concepts");
 lines.push("```dataview");
-lines.push(`TABLE default(created, default(date, file.ctime)) AS \"Created\", default(year, ${generalLiteral}) AS ${yearColumnLabel}`);
-lines.push('FROM ""');
-lines.push('WHERE course = this.course AND type = "concept"');
+lines.push(`TABLE default(created, default(date, file.ctime)) AS "Created", default(year, ${generalLiteral}) AS ${yearColumnLabel}`);
+lines.push(`FROM ${dvSource}`);
+lines.push(`WHERE course = this.course AND type = "${conceptType}"`);
 lines.push('SORT default(created, default(date, file.ctime)) DESC');
 lines.push("```");
 lines.push("");
+
 lines.push(`## 🗂️ Notes by ${yearLabel}`);
 lines.push("```dataview");
 lines.push('TABLE WITHOUT ID rows.file.link AS "Notes"');
-lines.push('FROM ""');
-lines.push('WHERE course = this.course AND contains(["lecture", "concept", "general"], type)');
+lines.push(`FROM ${dvSource}`);
+lines.push(`WHERE course = this.course AND contains(${allowedTypesLiteral}, type)`);
 lines.push(`GROUP BY default(year, ${generalLiteral})`);
 lines.push('SORT key ASC');
 lines.push("```");
 lines.push("");
+
 lines.push(`## 🧭 ${yearsToTemasTitle}`);
 lines.push("```dataviewjs");
 lines.push(String.raw`const current = dv.current();
 const targetCourse = current.course ?? ${generalLiteral};
-const allowedTypes = new Set(["lecture", "concept", "general"]);
+const allowedTypes = new Set(${allowedTypesLiteral});
 const getSortValue = (page) => page.created ?? page.date ?? page.file?.ctime;
 
 const pages = dv
-  .pages("")
+  .pages(${dvSource})
   .where((page) => (page.course ?? ${generalLiteral}) === targetCourse)
   .where((page) => allowedTypes.has((page.type ?? "").toLowerCase()))
   .array();
@@ -218,12 +241,13 @@ if (pages.length === 0) {
 }`);
 lines.push("```");
 lines.push("");
+
 lines.push(`## 🗒️ ${temaIndexTitle}`);
 lines.push("```dataviewjs");
 lines.push(String.raw`const targetCourse = dv.current().course ?? ${generalLiteral};
-const allowedTypes = new Set(["lecture", "concept", "general"]);
+const allowedTypes = new Set(${allowedTypesLiteral});
 const temasPages = dv
-  .pages("")
+  .pages(${dvSource})
   .where((page) => (page.course ?? ${generalLiteral}) === targetCourse)
   .where((page) => allowedTypes.has((page.type ?? "").toLowerCase()))
   .array();
@@ -243,9 +267,10 @@ if (temaList.length === 0) {
 }`);
 lines.push("```");
 lines.push("");
+
 lines.push("## ⏳ Open Tasks");
 lines.push("```dataview");
-lines.push('TASK FROM ""');
+lines.push(`TASK FROM ${dvSource}`);
 lines.push('WHERE !completed AND course = this.course');
 lines.push('SORT file.due ASC');
 lines.push("```");
@@ -254,6 +279,7 @@ lines.push("");
 
 tR = lines.join("\n");
 
+// --- 5. PLACE FILE ---
 if (needsMove) {
   await tp.file.move(destinationMovePath);
 }

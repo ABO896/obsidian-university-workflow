@@ -21,6 +21,9 @@ const universityConfig = {
   },
   years: ["Year 1", "Year 2", "Year 3", "Year 4", "Year 5"],
   parciales: ["General", "Parcial 1", "Parcial 2", "Parcial 3", "Final"],
+  // Language identifier for the default code fence in Lecture Notes.
+  // Set to "" for a language-neutral block, or any valid identifier (e.g. "python", "java").
+  codeLanguage: "",
   schema: {
     types: {
       lecture: "lecture",

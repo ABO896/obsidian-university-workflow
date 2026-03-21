@@ -322,15 +322,21 @@ function universityNoteUtils() {
       const loweredName = name.toLowerCase();
       const loweredParcialContainer = (PARCIAL_CONTAINER_NAME ?? "").toLowerCase();
 
+      // Exclude the dedicated parciales container folder itself.
       if (loweredParcialContainer && loweredName === loweredParcialContainer) {
         return false;
       }
 
+      // Exclude any folder whose name matches the generic "parcial(es)" pattern.
       if (/^parciales?$/.test(loweredName)) {
         return false;
       }
 
-      return normalizeParcial(name) === GENERAL_LABEL;
+      // Exclude any folder whose name is recognised as a known parcial entry
+      // (e.g. "Parcial 1", "Final"). normalizeParcial returns GENERAL_LABEL for
+      // names it does NOT recognise as a parcial, so keep those as temas.
+      const looksLikeKnownParcial = normalizeParcial(name) !== GENERAL_LABEL;
+      return !looksLikeKnownParcial;
     });
 
     return {
@@ -785,6 +791,8 @@ function universityNoteUtils() {
     };
   }
 
+  const codeLanguage = typeof config.codeLanguage === "string" ? config.codeLanguage : "";
+
   const constants = {
     general: GENERAL_LABEL,
     final: FINAL_LABEL,
@@ -795,6 +803,7 @@ function universityNoteUtils() {
     universityRoot: DEFAULT_BASE_PATH,
     parcialContainer: PARCIAL_CONTAINER_NAME,
     temaContainer: TEMA_CONTAINER_NAME,
+    codeLanguage,
   };
 
   return {

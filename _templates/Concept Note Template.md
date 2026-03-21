@@ -1,10 +1,14 @@
 <%*
 // Depends on: _templater_scripts/getUniversityContext.js, _templater_scripts/universityNoteUtils.js, _templater_scripts/universityConfig.js
+
+// --- 0. GUARD: verify target file exists ---
 const currentFile = tp.config.target_file;
 if (!currentFile) {
   new Notice("⛔️ Abort: Templater has no target file.", 10_000);
   return;
 }
+
+// --- 1. LOAD UTILITIES ---
 const context = await tp.user.getUniversityContext(currentFile);
 const getConfig = tp.user.universityConfig;
 const config = typeof getConfig === "function" ? await getConfig() : null;
@@ -16,6 +20,7 @@ const {
   ensureUniqueFileName,
   resolveSubjectParcialTema,
   constants = {},
+  schema = {},
 } = noteUtils ?? {};
 
 if (!noteUtils) {
@@ -33,9 +38,15 @@ if (!generalLabel) {
   new Notice("⛔️ Abort: University general label is not configured.", 10_000);
   return;
 }
+
+const noteTypes = schema?.types ?? {};
+const conceptType = noteTypes.concept ?? "concept";
+const lectureType = noteTypes.lecture ?? "lecture";
+
 const contextSubject = context?.subject ?? generalLabel;
 const contextYear = context?.year ?? tp.frontmatter?.year ?? null;
 
+// --- 2. RESOLVE PLACEMENT (shows year → subject → tema dialogs) ---
 const placement = await resolveSubjectParcialTema(tp, {
   currentFile,
   contextSubject,
@@ -50,6 +61,7 @@ const {
   subject: resolvedSubject = generalLabel,
   year: resolvedYear = null,
   tema: resolvedTema = generalLabel,
+  baseUniversityPath,
 } = placement ?? {};
 
 const selectedSubject = resolvedSubject || generalLabel;
@@ -63,8 +75,8 @@ if (!targetFolder) {
 
 await ensureFolderPath(targetFolder);
 
+// --- 3. PLACE FILE (before writing tR so the file is at its final path) ---
 const today = tp.date.now("YYYY-MM-DD");
-
 const extension = currentFile?.extension ?? "md";
 const finalFileName = ensureUniqueFileName(targetFolder, currentFile?.basename ?? "Untitled", extension);
 const destinationFilePath = `${targetFolder}/${finalFileName}.${extension}`;
@@ -75,10 +87,16 @@ if (needsMove) {
   await tp.file.move(destinationMovePath);
 }
 
+// --- 4. BUILD CONTENT ---
+// Dataview source scoped to the university root for performance.
+const dvSource = JSON.stringify(baseUniversityPath ?? "");
+const generalLiteral = JSON.stringify(generalLabel);
+const lectureTypeLiteral = JSON.stringify(lectureType);
+
 tR += [
   "---",
-  "type: concept",
-  "tags: [concept]",
+  `type: ${conceptType}`,
+  `tags: [${conceptType}]`,
   `course: ${JSON.stringify(selectedSubject)}`,
   selectedYear ? `year: ${JSON.stringify(selectedYear)}` : null,
   `tema: ${JSON.stringify(selectedTema)}`,
@@ -115,16 +133,16 @@ tR += `- ${tp.file.cursor()}`;
 
 ```dataviewjs
 const concept = dv.current();
-const targetCourse = concept.course ?? <%* tR += JSON.stringify(generalLabel); %>;
+const targetCourse = concept.course ?? <%* tR += generalLiteral; %>;
 const targetName = (concept.file?.name ?? "").toLowerCase();
 const targetPath = concept.file?.path ?? "";
 
-const allowedTypes = new Set(["lecture"]);
+const allowedTypes = new Set([<%* tR += lectureTypeLiteral; %>]);
 const sortValue = (page) => page.created ?? page.date ?? page.file?.ctime;
 
 const matches = dv
-  .pages("")
-  .where((page) => (page.course ?? <%* tR += JSON.stringify(generalLabel); %>) === targetCourse)
+  .pages(<%* tR += dvSource; %>)
+  .where((page) => (page.course ?? <%* tR += generalLiteral; %>) === targetCourse)
   .where((page) => allowedTypes.has((page.type ?? "").toLowerCase()))
   .where((page) => {
     const concepts = Array.isArray(page.concepts) ? page.concepts : [];

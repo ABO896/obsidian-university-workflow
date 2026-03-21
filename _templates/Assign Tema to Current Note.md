@@ -20,6 +20,7 @@ const {
   toSlug,
   resolveSubjectParcialTema,
   constants = {},
+  schema = {},
 } = noteUtils ?? {};
 
 if (!noteUtils || !resolveSubjectParcialTema) {
