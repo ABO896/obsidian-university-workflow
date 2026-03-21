@@ -1,14 +1,344 @@
-const test = require('node:test');
-const assert = require('node:assert');
+const { test, describe } = require('node:test');
+const assert = require('node:assert/strict');
 
 const createUniversityNoteUtils = require('../_templater_scripts/universityNoteUtils');
 
-const { toSlug } = createUniversityNoteUtils();
+// Factory is called once; all returned functions are pure helpers that don't
+// touch the Obsidian `app` global, so they work fine in Node.js.
+const utils = createUniversityNoteUtils();
+const {
+  toSlug,
+  normalizeParcial,
+  normalizeYear,
+  sanitizeFileName,
+  sanitizeFolderName,
+  pathJoin,
+  dedupePreserveOrder,
+  sortCaseInsensitive,
+  reorderWithPreference,
+  constants,
+} = utils;
 
-test('toSlug gracefully handles null input', () => {
-  assert.doesNotThrow(() => {
-    const result = toSlug(null);
-    assert.strictEqual(result, '');
+// ---------------------------------------------------------------------------
+// toSlug
+// ---------------------------------------------------------------------------
+describe('toSlug', () => {
+  test('returns empty string for null', () => {
+    assert.equal(toSlug(null), '');
+  });
+
+  test('returns empty string for undefined', () => {
+    assert.equal(toSlug(undefined), '');
+  });
+
+  test('returns empty string for empty string', () => {
+    assert.equal(toSlug(''), '');
+  });
+
+  test('lowercases ASCII text', () => {
+    assert.equal(toSlug('Hello World'), 'hello-world');
+  });
+
+  test('replaces spaces with hyphens', () => {
+    assert.equal(toSlug('foo bar baz'), 'foo-bar-baz');
+  });
+
+  test('strips diacritics (NFD normalization)', () => {
+    assert.equal(toSlug('Álgebra Lineal'), 'algebra-lineal');
+  });
+
+  test('strips diacritics — accented e', () => {
+    assert.equal(toSlug('Análisis'), 'analisis');
+  });
+
+  test('removes characters that are not word chars or spaces/hyphens', () => {
+    assert.equal(toSlug('Hello, World!'), 'hello-world');
+  });
+
+  test('collapses multiple spaces into a single hyphen', () => {
+    assert.equal(toSlug('foo   bar'), 'foo-bar');
+  });
+
+  test('trims leading and trailing whitespace', () => {
+    assert.equal(toSlug('  foo  '), 'foo');
+  });
+
+  test('handles numeric strings', () => {
+    assert.equal(toSlug('Year 1'), 'year-1');
+  });
+
+  test('handles already-slug strings unchanged', () => {
+    assert.equal(toSlug('my-slug'), 'my-slug');
   });
 });
 
+// ---------------------------------------------------------------------------
+// sanitizeFileName
+// ---------------------------------------------------------------------------
+describe('sanitizeFileName', () => {
+  test('returns empty string for null', () => {
+    assert.equal(sanitizeFileName(null), '');
+  });
+
+  test('replaces reserved characters with hyphens', () => {
+    const result = sanitizeFileName('hello:world/test*file');
+    // colons, slashes, asterisks → hyphens
+    assert.ok(!result.includes(':'));
+    assert.ok(!result.includes('/'));
+    assert.ok(!result.includes('*'));
+  });
+
+  test('does not alter safe names', () => {
+    assert.equal(sanitizeFileName('Lecture 2024-01-01'), 'Lecture 2024-01-01');
+  });
+
+  test('trims surrounding whitespace', () => {
+    assert.equal(sanitizeFileName('  file  '), 'file');
+  });
+
+  test('replaces backslash', () => {
+    const result = sanitizeFileName('foo\\bar');
+    assert.ok(!result.includes('\\'));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// sanitizeFolderName
+// ---------------------------------------------------------------------------
+describe('sanitizeFolderName', () => {
+  test('returns empty string for null', () => {
+    assert.equal(sanitizeFolderName(null), '');
+  });
+
+  test('replaces forward slash with hyphen', () => {
+    assert.equal(sanitizeFolderName('Matemáticas/Avanzadas'), 'Matemáticas-Avanzadas');
+  });
+
+  test('replaces backslash with hyphen', () => {
+    assert.equal(sanitizeFolderName('foo\\bar'), 'foo-bar');
+  });
+
+  test('trims surrounding whitespace', () => {
+    assert.equal(sanitizeFolderName('  folder  '), 'folder');
+  });
+
+  test('does not alter safe folder names', () => {
+    assert.equal(sanitizeFolderName('Year 1'), 'Year 1');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// pathJoin
+// ---------------------------------------------------------------------------
+describe('pathJoin', () => {
+  test('joins two segments with a slash', () => {
+    assert.equal(pathJoin('Universidad', 'Year 1'), 'Universidad/Year 1');
+  });
+
+  test('filters out empty and slash-only segments', () => {
+    assert.equal(pathJoin('Universidad', '', 'Maths'), 'Universidad/Maths');
+  });
+
+  test('trims whitespace from each segment', () => {
+    assert.equal(pathJoin(' Universidad ', ' Year 1 '), 'Universidad/Year 1');
+  });
+
+  test('handles a single segment', () => {
+    assert.equal(pathJoin('Universidad'), 'Universidad');
+  });
+
+  test('handles null/undefined segments gracefully (filters them out)', () => {
+    assert.equal(pathJoin('Universidad', null, 'Maths'), 'Universidad/Maths');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// dedupePreserveOrder
+// ---------------------------------------------------------------------------
+describe('dedupePreserveOrder', () => {
+  test('removes duplicate strings (case-insensitive)', () => {
+    const result = dedupePreserveOrder(['Alpha', 'beta', 'ALPHA']);
+    assert.deepEqual(result, ['Alpha', 'beta']);
+  });
+
+  test('keeps first occurrence', () => {
+    const result = dedupePreserveOrder(['B', 'A', 'B']);
+    assert.deepEqual(result, ['B', 'A']);
+  });
+
+  test('filters out empty/falsy values', () => {
+    const result = dedupePreserveOrder(['A', '', null, undefined, 'B']);
+    assert.deepEqual(result, ['A', 'B']);
+  });
+
+  test('returns empty array for empty input', () => {
+    assert.deepEqual(dedupePreserveOrder([]), []);
+  });
+
+  test('returns empty array when called with no arguments', () => {
+    assert.deepEqual(dedupePreserveOrder(), []);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// sortCaseInsensitive
+// ---------------------------------------------------------------------------
+describe('sortCaseInsensitive', () => {
+  test('sorts alphabetically ignoring case', () => {
+    const result = sortCaseInsensitive(['Zebra', 'apple', 'Mango']);
+    assert.deepEqual(result, ['apple', 'Mango', 'Zebra']);
+  });
+
+  test('does not mutate original array', () => {
+    const original = ['C', 'A', 'B'];
+    sortCaseInsensitive(original);
+    assert.deepEqual(original, ['C', 'A', 'B']);
+  });
+
+  test('returns empty array for empty input', () => {
+    assert.deepEqual(sortCaseInsensitive([]), []);
+  });
+
+  test('handles single element', () => {
+    assert.deepEqual(sortCaseInsensitive(['only']), ['only']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// reorderWithPreference
+// ---------------------------------------------------------------------------
+describe('reorderWithPreference', () => {
+  const GENERAL = constants.general; // "General"
+
+  test('moves preferred item to front', () => {
+    const result = reorderWithPreference(['Alpha', 'Beta', 'Gamma'], 'Beta');
+    assert.equal(result[0], 'Beta');
+  });
+
+  test('keeps all items (no removal)', () => {
+    const result = reorderWithPreference(['Alpha', 'Beta', 'Gamma'], 'Beta');
+    assert.equal(result.length, 3);
+  });
+
+  test('returns unchanged array when preferred is General (default)', () => {
+    const input = ['Alpha', 'Beta'];
+    const result = reorderWithPreference(input, GENERAL);
+    assert.deepEqual(result, input);
+  });
+
+  test('prepends preferred when not already in list', () => {
+    const result = reorderWithPreference(['Alpha', 'Beta'], 'Delta');
+    assert.equal(result[0], 'Delta');
+    assert.equal(result.length, 3);
+  });
+
+  test('returns unchanged array when preferred is falsy', () => {
+    const input = ['Alpha', 'Beta'];
+    assert.deepEqual(reorderWithPreference(input, null), input);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// normalizeParcial
+// ---------------------------------------------------------------------------
+describe('normalizeParcial', () => {
+  const GENERAL = constants.general; // "General"
+
+  test('returns General for null input', () => {
+    assert.equal(normalizeParcial(null), GENERAL);
+  });
+
+  test('returns General for empty string', () => {
+    assert.equal(normalizeParcial(''), GENERAL);
+  });
+
+  test('recognises "General" (exact match)', () => {
+    assert.equal(normalizeParcial('General'), GENERAL);
+  });
+
+  test('recognises "general" (case-insensitive)', () => {
+    assert.equal(normalizeParcial('general'), GENERAL);
+  });
+
+  test('maps "Parcial 1" to canonical value', () => {
+    assert.equal(normalizeParcial('Parcial 1'), 'Parcial 1');
+  });
+
+  test('maps "parcial 1" (lowercase) to canonical value', () => {
+    assert.equal(normalizeParcial('parcial 1'), 'Parcial 1');
+  });
+
+  test('maps "Parcial1" (no space) to canonical value via regex', () => {
+    assert.equal(normalizeParcial('Parcial1'), 'Parcial 1');
+  });
+
+  test('maps "parcial-2" (hyphen separator) to canonical value', () => {
+    assert.equal(normalizeParcial('parcial-2'), 'Parcial 2');
+  });
+
+  test('maps "Final" to the canonical final value', () => {
+    assert.equal(normalizeParcial('Final'), 'Final');
+  });
+
+  test('maps "FINAL" (uppercase) to canonical final value', () => {
+    assert.equal(normalizeParcial('FINAL'), 'Final');
+  });
+
+  test('returns General for completely unrecognised value', () => {
+    assert.equal(normalizeParcial('some-unknown-thing'), GENERAL);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// normalizeYear
+// ---------------------------------------------------------------------------
+describe('normalizeYear', () => {
+  test('returns null for null input', () => {
+    assert.equal(normalizeYear(null), null);
+  });
+
+  test('returns null for empty string', () => {
+    assert.equal(normalizeYear(''), null);
+  });
+
+  test('recognises "Year 1" (exact match)', () => {
+    assert.equal(normalizeYear('Year 1'), 'Year 1');
+  });
+
+  test('recognises "year 1" (case-insensitive)', () => {
+    assert.equal(normalizeYear('year 1'), 'Year 1');
+  });
+
+  test('recognises "Year1" (no space)', () => {
+    assert.equal(normalizeYear('Year1'), 'Year 1');
+  });
+
+  test('recognises "yr 2" abbreviation', () => {
+    assert.equal(normalizeYear('yr 2'), 'Year 2');
+  });
+
+  test('recognises "2nd year" ordinal form', () => {
+    assert.equal(normalizeYear('2nd year'), 'Year 2');
+  });
+
+  test('recognises "ano 3" (Spanish abbreviation)', () => {
+    assert.equal(normalizeYear('ano 3'), 'Year 3');
+  });
+
+  test('returns null for allowLiteral:false when input is not a year pattern', () => {
+    assert.equal(normalizeYear('Maths', { allowLiteral: false }), null);
+  });
+
+  test('returns literal string when allowLiteral:true and no pattern matches', () => {
+    assert.equal(normalizeYear('Custom', { allowLiteral: true }), 'Custom');
+  });
+
+  test('returns null for "General" when allowLiteral:true (general is excluded)', () => {
+    // normalizeYear treats GENERAL_LABEL as non-year even with allowLiteral:true
+    assert.equal(normalizeYear(constants.general, { allowLiteral: true }), null);
+  });
+
+  test('recognises "Year 5" (boundary of configured years)', () => {
+    assert.equal(normalizeYear('Year 5'), 'Year 5');
+  });
+});

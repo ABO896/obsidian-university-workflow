@@ -1,11 +1,20 @@
 <%*
 // Depends on: _templater_scripts/getUniversityContext.js, _templater_scripts/universityNoteUtils.js, _templater_scripts/universityConfig.js
-// --- 0. GET THE TARGET FILE & CONTEXT ---
+
+// --- 0. GUARD: must run on a fresh Untitled note ---
 const currentFile = tp.config.target_file;
 if (!currentFile) {
   new Notice("⛔️ Abort: Templater has no target file.", 10_000);
   return;
 }
+
+const basename = currentFile.basename.toLowerCase();
+if (!basename.startsWith("untitled") && !basename.startsWith("sin título")) {
+  new Notice("⛔️ Abort: Template must be run in a new 'Untitled' note.", 10_000);
+  return;
+}
+
+// --- 1. LOAD UTILITIES ---
 const getConfig = tp.user.universityConfig;
 const config = typeof getConfig === "function" ? await getConfig() : null;
 const configLabels = config?.labels ?? {};
@@ -20,6 +29,7 @@ const {
   toSlug,
   resolveSubjectParcialTema,
   constants = {},
+  schema = {},
 } = noteUtils ?? {};
 
 if (!noteUtils) {
@@ -37,9 +47,15 @@ if (!generalLabel) {
   new Notice("⛔️ Abort: University general label is not configured.", 10_000);
   return;
 }
+
+const noteTypes = schema?.types ?? {};
+const lectureType = noteTypes.lecture ?? "lecture";
+const codeLanguage = constants?.codeLanguage ?? "";
+
 const contextSubject = context?.subject ?? generalLabel;
 const contextYear = context?.year ?? tp.frontmatter?.year ?? null;
 
+// --- 2. RESOLVE PLACEMENT (shows year → subject → tema dialogs) ---
 const placement = await resolveSubjectParcialTema(tp, {
   currentFile,
   contextSubject,
@@ -67,16 +83,8 @@ if (!targetFolder) {
 
 await ensureFolderPath(targetFolder);
 
+// --- 3. PROMPT FOR TOPIC & DEFINE FILE NAME ---
 const today = tp.date.now("YYYY-MM-DD");
-
-// --- 1. VALIDATION ---
-const basename = currentFile.basename.toLowerCase();
-if (!basename.startsWith("untitled") && !basename.startsWith("sin título")) {
-  new Notice("⛔️ Abort: Template must be run in a new 'Untitled' note.", 10_000);
-  return;
-}
-
-// --- 2. PROMPT FOR TOPIC & DEFINE NAME ---
 const topicInput = await tp.system.prompt("Lecture Topic (optional)");
 const rawTopic = topicInput?.trim();
 const safeTopic = sanitizeFileName(rawTopic) || "Untitled Topic";
@@ -88,10 +96,9 @@ const extension = currentFile?.extension ?? "md";
 const finalFileName = ensureUniqueFileName(targetFolder, noteTitle, extension);
 const destinationFilePath = `${targetFolder}/${finalFileName}.${extension}`;
 const destinationMovePath = `${targetFolder}/${finalFileName}`;
-const needsMove =
-  currentFile?.path !== destinationFilePath;
+const needsMove = currentFile?.path !== destinationFilePath;
 
-// --- 3. BUILD THE CONTENT ---
+// --- 4. BUILD CONTENT ---
 const subjectSlug = toSlug(subject);
 const temaSlug = toSlug(tema);
 const lectureTags =
@@ -110,7 +117,7 @@ const frontMatter = [
   `course: ${JSON.stringify(subject)}`,
   year ? `year: ${JSON.stringify(year)}` : null,
   `tema: ${JSON.stringify(tema)}`,
-  "type: lecture",
+  `type: ${lectureType}`,
   `created: ${JSON.stringify(created)}`,
   "status: draft",
   `aliases: [${alias}]`,
@@ -127,8 +134,8 @@ content += "## 📜 Summary\n- [ ] Key takeaway 1\n- [ ] Key takeaway 2\n\n";
 content += "## 📚 Definitions\n- [ ] Term :: Definition\n\n";
 content += "## 🧩 Key Concepts\n- [ ] Concept :: Insight\n\n";
 content += "## 💡 Examples or Code\n";
-content += "```c\n";
-content += `// Code for: ${safeTopic}\n`;
+content += `\`\`\`${codeLanguage}\n`;
+content += `// ${safeTopic}\n`;
 content += "```\n\n";
 content += "## 🧭 Explanation in My Own Words\n- [ ] Insight\n\n";
 content += "## 🔗 Connections\n- [ ] Related topic\n\n";
@@ -137,7 +144,7 @@ content += `\n${tp.file.cursor()}`;
 
 tR = content;
 
-// --- 4. SET CURSOR & PLACE FILE ---
+// --- 5. PLACE FILE ---
 if (needsMove) {
   await tp.file.move(destinationMovePath);
 }
