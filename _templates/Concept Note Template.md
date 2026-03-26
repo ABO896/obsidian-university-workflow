@@ -93,7 +93,7 @@ const dvSource = JSON.stringify(baseUniversityPath ?? "");
 const generalLiteral = JSON.stringify(generalLabel);
 const lectureTypeLiteral = JSON.stringify(lectureType);
 
-tR += [
+const frontmatterLines = [
   "---",
   `type: ${conceptType}`,
   `tags: [${conceptType}]`,
@@ -104,67 +104,77 @@ tR += [
   "status: draft",
   "aliases: []",
   "---",
-  "",
 ]
   .filter(Boolean)
   .join("\n");
+
+// Dataview JS that finds all lectures/notes referencing this concept by name
+// or via an explicit entry in their `concepts` frontmatter array.
+const dataviewBlock = [
+  "```dataviewjs",
+  `const concept = dv.current();`,
+  `const targetCourse = concept.course ?? ${generalLiteral};`,
+  `const targetName = (concept.file?.name ?? "").toLowerCase();`,
+  `const targetPath = concept.file?.path ?? "";`,
+  ``,
+  `const allowedTypes = new Set([${lectureTypeLiteral}]);`,
+  `const sortValue = (page) => page.created ?? page.date ?? page.file?.ctime;`,
+  ``,
+  `const matches = dv`,
+  `  .pages(${dvSource})`,
+  `  .where((page) => (page.course ?? ${generalLiteral}) === targetCourse)`,
+  `  .where((page) => allowedTypes.has((page.type ?? "").toLowerCase()))`,
+  `  .where((page) => {`,
+  `    const concepts = Array.isArray(page.concepts) ? page.concepts : [];`,
+  `    const conceptMatch = concepts.some((entry) => {`,
+  `      if (!entry) {`,
+  `        return false;`,
+  `      }`,
+  ``,
+  `      const entryValue = entry.path ?? entry.toString?.() ?? entry;`,
+  `      if (!entryValue) {`,
+  `        return false;`,
+  `      }`,
+  ``,
+  `      const lowered = entryValue.toString().toLowerCase();`,
+  `      return lowered === targetName || lowered === targetPath.toLowerCase();`,
+  `    });`,
+  ``,
+  `    const linkMatch = (page.file?.outlinks ?? []).some((link) => link.path === targetPath);`,
+  `    return conceptMatch || linkMatch;`,
+  `  })`,
+  `  .array()`,
+  `  .sort((a, b) => dv.compare(sortValue(a), sortValue(b)));`,
+  ``,
+  `dv.list(matches.map((page) => page.file.link));`,
+  "```",
+].join("\n");
+
+const lines = [
+  frontmatterLines,
+  "",
+  `# 💡 ${finalFileName}`,
+  "",
+  "## 📜 Definition",
+  "*A formal, textbook-style definition of the concept.*",
+  `- ${tp.file.cursor(1)}`,
+  "",
+  "## 🧠 Analogy or Metaphor",
+  "*How can I explain this concept using a simple, real-world analogy?*",
+  `- [ ] ${tp.file.cursor(2)}`,
+  "",
+  "## 🧭 Explanation in My Own Words",
+  "*The Feynman Technique: Explaining it simply to prove I understand it.*",
+  "- [ ] Insight",
+  "",
+  "---",
+  "",
+  "## 🔗 Connections",
+  "*This concept is mentioned in the following lectures and notes:*",
+  "",
+  dataviewBlock,
+  "",
+];
+
+tR = lines.join("\n");
 %>
-
-# 💡 <% tp.file.title %>
-
-## 📜 Definition
-*A formal, textbook-style definition of the concept.*
-<%*
-tR += `- ${tp.file.cursor()}`;
-%>
-
-## 🧠 Analogy or Metaphor
-*How can I explain this concept using a simple, real-world analogy?*
-- [ ] Analogy
-
-## 🧭 Explanation in My Own Words
-*The Feynman Technique: Explaining it simply to prove I understand it.*
-- [ ] Insight
-
----
-
-## 🔗 Connections
-*This concept is mentioned in the following lectures and notes:*
-
-```dataviewjs
-const concept = dv.current();
-const targetCourse = concept.course ?? <%* tR += generalLiteral; %>;
-const targetName = (concept.file?.name ?? "").toLowerCase();
-const targetPath = concept.file?.path ?? "";
-
-const allowedTypes = new Set([<%* tR += lectureTypeLiteral; %>]);
-const sortValue = (page) => page.created ?? page.date ?? page.file?.ctime;
-
-const matches = dv
-  .pages(<%* tR += dvSource; %>)
-  .where((page) => (page.course ?? <%* tR += generalLiteral; %>) === targetCourse)
-  .where((page) => allowedTypes.has((page.type ?? "").toLowerCase()))
-  .where((page) => {
-    const concepts = Array.isArray(page.concepts) ? page.concepts : [];
-    const conceptMatch = concepts.some((entry) => {
-      if (!entry) {
-        return false;
-      }
-
-      const entryValue = entry.path ?? entry.toString?.() ?? entry;
-      if (!entryValue) {
-        return false;
-      }
-
-      const lowered = entryValue.toString().toLowerCase();
-      return lowered === targetName || lowered === targetPath.toLowerCase();
-    });
-
-    const linkMatch = (page.file?.outlinks ?? []).some((link) => link.path === targetPath);
-    return conceptMatch || linkMatch;
-  })
-  .array()
-  .sort((a, b) => dv.compare(sortValue(a), sortValue(b)));
-
-dv.list(matches.map((page) => page.file.link));
-```
