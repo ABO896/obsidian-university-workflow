@@ -7,61 +7,10 @@
 */
 
 const path = require("path");
-
-function requireScript(scriptFile) {
-  const vaultBasePath = typeof app !== "undefined" ? app?.vault?.adapter?.basePath : undefined;
-  const scriptRelativePath = path.join("_templater_scripts", scriptFile);
-
-  if (vaultBasePath) {
-    const absolutePath = path.join(vaultBasePath, scriptRelativePath);
-
-    try {
-      return require(absolutePath);
-    } catch (error) {
-      if (!shouldFallbackToLocalRequire(error, absolutePath)) {
-        throw error;
-      }
-    }
-  }
-
-  const localTargets = [];
-
-  if (typeof __dirname === "string" && __dirname) {
-    localTargets.push(path.join(__dirname, scriptFile));
-  }
-
-  localTargets.push(`./${scriptFile}`);
-
-  for (const target of localTargets) {
-    try {
-      return require(target);
-    } catch (error) {
-      if (!shouldFallbackToLocalRequire(error, target)) {
-        throw error;
-      }
-    }
-  }
-
-  throw new Error(`Unable to load script: ${scriptFile}`);
-}
-
-function shouldFallbackToLocalRequire(error, attemptedPath) {
-  if (!error) {
-    return false;
-  }
-
-  if (error.code && error.code !== "MODULE_NOT_FOUND") {
-    return false;
-  }
-
-  const message = error.message ?? "";
-  if (!message) {
-    return true;
-  }
-
-  return message.includes("MODULE_NOT_FOUND") && message.includes(attemptedPath);
-}
-
+// requireScript is extracted into scriptLoader.js to avoid duplication with
+// getUniversityContext.js.  Both scripts bootstrap from __dirname which is
+// always set by Node/Electron for modules loaded via require().
+const requireScript = require(path.join(__dirname, "scriptLoader.js"));
 const getUniversityConfig = requireScript("universityConfig.js");
 
 function universityNoteUtils() {
@@ -402,7 +351,8 @@ function universityNoteUtils() {
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^\w\s-]/g, "")
       .trim()
-      .replace(/\s+/g, "-")
+      // Treat underscores the same as spaces so "hello_world" → "hello-world"
+      .replace(/[\s_]+/g, "-")
       .toLowerCase();
   }
 
@@ -449,13 +399,20 @@ function universityNoteUtils() {
       return canonicalYearsMap.get(lowered) ?? null;
     }
 
+    // NFD-normalize before pattern matching so accented variants like "Año 1"
+    // (ñ → n) are matched by the "ano" pattern without needing a separate rule.
+    const normalizedLower = trimmed
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
     const patterns = [
       /(?:year|yr|ano|y)[\s_-]*(\d{1,2})/i,
       /(\d{1,2})(?:st|nd|rd|th)?[\s_-]*(?:year|yr|ano)/i,
     ];
 
     for (const pattern of patterns) {
-      const match = lowered.match(pattern);
+      const match = normalizedLower.match(pattern);
       const number = match?.[1];
       if (!number) {
         continue;

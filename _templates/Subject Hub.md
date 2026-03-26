@@ -149,9 +149,12 @@ const lines = [frontMatter];
 lines.push(`# 🧭 ${displayTitle}`);
 lines.push("");
 lines.push("## ✅ Overview");
-lines.push(`- [ ] ${tp.file.cursor()}Course summary`);
+lines.push("- [ ] Course summary");
 lines.push("- [ ] Key resources");
 lines.push("- [ ] Upcoming priorities");
+// Cursor lands on a blank item so the user can start adding content immediately
+// without overwriting any placeholder text.
+lines.push(`- [ ] ${tp.file.cursor()}`);
 lines.push("");
 
 lines.push("## 📘 Lectures");

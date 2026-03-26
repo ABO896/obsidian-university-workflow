@@ -127,11 +127,15 @@ const frontMatter = [
   .filter(Boolean)
   .join("\n");
 
+// Multiple cursors allow Tab-key navigation between the most-edited sections:
+//   cursor(1) → first Summary takeaway  (filled during/right after the lecture)
+//   cursor(2) → first Definition entry  (terminology captured live)
+//   cursor(3) → Questions section       (open questions noted at the end)
 let content = `${frontMatter}\n`;
 content += lectureTags ? `${lectureTags}\n\n` : "";
 content += `# 🧠 ${headingTitle}\n\n`;
-content += "## 📜 Summary\n- [ ] Key takeaway 1\n- [ ] Key takeaway 2\n\n";
-content += "## 📚 Definitions\n- [ ] Term :: Definition\n\n";
+content += `## 📜 Summary\n- [ ] ${tp.file.cursor(1)}\n- [ ] Key takeaway 2\n\n`;
+content += `## 📚 Definitions\n- [ ] ${tp.file.cursor(2)} :: Definition\n\n`;
 content += "## 🧩 Key Concepts\n- [ ] Concept :: Insight\n\n";
 content += "## 💡 Examples or Code\n";
 content += `\`\`\`${codeLanguage}\n`;
@@ -139,8 +143,7 @@ content += `// ${safeTopic}\n`;
 content += "```\n\n";
 content += "## 🧭 Explanation in My Own Words\n- [ ] Insight\n\n";
 content += "## 🔗 Connections\n- [ ] Related topic\n\n";
-content += "## 🧠 Questions I Still Have\n- [ ] Open question\n";
-content += `\n${tp.file.cursor()}`;
+content += `## 🧠 Questions I Still Have\n- [ ] ${tp.file.cursor(3)}\n`;
 
 tR = content;
 

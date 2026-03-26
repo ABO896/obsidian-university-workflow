@@ -1,6 +1,8 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 
+// scriptLoader is also exercised indirectly — universityNoteUtils uses it to
+// load universityConfig.  A direct smoke test lives at the bottom of this file.
 const createUniversityNoteUtils = require('../_templater_scripts/universityNoteUtils');
 
 // Factory is called once; all returned functions are pure helpers that don't
@@ -69,6 +71,14 @@ describe('toSlug', () => {
 
   test('handles already-slug strings unchanged', () => {
     assert.equal(toSlug('my-slug'), 'my-slug');
+  });
+
+  test('converts underscores to hyphens (same treatment as spaces)', () => {
+    assert.equal(toSlug('hello_world'), 'hello-world');
+  });
+
+  test('collapses mixed spaces and underscores into a single hyphen', () => {
+    assert.equal(toSlug('foo _ bar'), 'foo-bar');
   });
 });
 
@@ -340,5 +350,38 @@ describe('normalizeYear', () => {
 
   test('recognises "Year 5" (boundary of configured years)', () => {
     assert.equal(normalizeYear('Year 5'), 'Year 5');
+  });
+
+  test('recognises "Año 1" (Spanish with tilde — NFD-normalised to "ano")', () => {
+    assert.equal(normalizeYear('Año 1'), 'Year 1');
+  });
+
+  test('recognises "año 3" (lowercase with tilde)', () => {
+    assert.equal(normalizeYear('año 3'), 'Year 3');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// scriptLoader (smoke test)
+// ---------------------------------------------------------------------------
+describe('scriptLoader', () => {
+  // scriptLoader is loaded indirectly by universityNoteUtils.  We also require
+  // it directly here to verify it resolves sibling scripts in Node.js.
+  const path = require('path');
+  const requireScript = require(path.join(__dirname, '../_templater_scripts/scriptLoader.js'));
+
+  test('loads universityConfig via requireScript', () => {
+    const getConfig = requireScript('universityConfig.js');
+    assert.equal(typeof getConfig, 'function');
+    const config = getConfig();
+    assert.ok(config && typeof config === 'object', 'config should be an object');
+    assert.ok(config.fs && config.labels, 'config should have fs and labels');
+  });
+
+  test('throws a helpful error for a non-existent script', () => {
+    assert.throws(
+      () => requireScript('does-not-exist.js'),
+      (err) => err.message.includes('does-not-exist.js')
+    );
   });
 });

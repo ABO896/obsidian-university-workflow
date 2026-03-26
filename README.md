@@ -13,6 +13,7 @@
   - [Concept Note](#concept-note)
   - [General Note](#general-note)
   - [Subject Hub](#subject-hub)
+  - [Parcial Prep Note](#parcial-prep-note)
   - [Assign Tema to Current Note](#assign-tema-to-current-note)
 - [Repository Layout](#repository-layout)
 - [Extending the system](#extending-the-system)
@@ -179,6 +180,30 @@ updated: "2024-05-03"
 ---
 ```
 
+### Parcial Prep Note
+
+1. Create a new untitled note.
+2. Run **Parcial Prep Note**; the helper walks you through year → subject → **parcial** (exam period).
+3. The note is placed inside `<University>/<Year>/<Subject>/Parciales/<Parcial N>/`.
+4. Dataview dashboards surface all lectures and concepts for the selected subject/year automatically.
+5. Fill in Topics to Cover, Summary Notes, and Practice Questions; the formula table is ready for key facts.
+
+```md
+---
+type: parcial-prep
+course: "Physics I"
+year: "Year 1"
+parcial: "Parcial 2"
+created: "2024-05-03"
+status: draft
+---
+```
+
+> **Note:** This is the only template that prompts for a parcial (exam period). It exercises the
+> `includeParcial: true` path in `resolveSubjectAndParcial` and demonstrates how to scope notes
+> to a specific exam section. Tab through the three cursor stops to fill in topics, notes, and
+> practice questions.
+
 ### Assign Tema to Current Note
 
 1. Open any note with frontmatter (lecture, concept, or general).
@@ -196,30 +221,33 @@ tema: "Oscillations"
 <details>
 <summary>Template prompts quick reference</summary>
 
-| Template | Prompts for subject? | Prompts for year? | Prompts for tema? |
-| --- | --- | --- | --- |
-| Lecture Note | ✅ | ✅ | ✅ (with skip option) |
-| Concept Note | ✅ | ✅ | ✅ |
-| General Note | ✅ | ✅ | ✅ |
-| Subject Hub | ✅ | ✅ | 🚫 (hubs stay at subject root inside the selected year) |
-| Assign Tema | ✅ | ✅ | ✅ |
+| Template | Prompts for subject? | Prompts for year? | Prompts for parcial? | Prompts for tema? |
+| --- | --- | --- | --- | --- |
+| Lecture Note | ✅ | ✅ | 🚫 | ✅ (with skip option) |
+| Concept Note | ✅ | ✅ | 🚫 | ✅ |
+| General Note | ✅ | ✅ | 🚫 | ✅ |
+| Subject Hub | ✅ | ✅ | 🚫 | 🚫 (hubs stay at subject root) |
+| Parcial Prep Note | ✅ | ✅ | ✅ | 🚫 (scoped by parcial, not tema) |
+| Assign Tema | ✅ | ✅ | 🚫 | ✅ |
 </details>
 
 ## Repository Layout
 
 ```text
 _templates/
-  Lecture Note.md          # Guided lecture capture with placement + sections
-  Concept Note Template.md # Concept deep dives with Dataview backlinks
-  General Note.md          # Flexible note with consistent metadata
-  Subject Hub.md           # Course dashboard anchored at year/subject root
+  Lecture Note.md             # Guided lecture capture with placement + sections
+  Concept Note Template.md    # Concept deep dives with Dataview backlinks
+  General Note.md             # Flexible note with consistent metadata
+  Subject Hub.md              # Course dashboard anchored at year/subject root
+  Parcial Prep Note.md        # Exam-prep dashboard scoped to a parcial period
   Assign Tema to Current Note.md # Utility to update existing notes
 _templater_scripts/
-  universityConfig.js      # Central labels, folders, years, schema
-  getUniversityContext.js  # Infers subject/year from current file path
-  universityNoteUtils.js   # Shared helpers for placement, slugging, and naming
-LICENSE                    # MIT license
-README.md                  # Documentation you are reading
+  universityConfig.js         # Central labels, folders, years, schema
+  scriptLoader.js             # Shared module-loading helper (requireScript)
+  getUniversityContext.js     # Infers subject/year from current file path
+  universityNoteUtils.js      # Shared helpers for placement, slugging, and naming
+LICENSE                       # MIT license
+README.md                     # Documentation you are reading
 ```
 
 ## Extending the system
@@ -243,6 +271,7 @@ README.md                  # Documentation you are reading
 | `tags` | Only for hubs (array of `course/<slug>`, `subject-hub`) | Subject Hub template |
 | `updated` | Last refresh date (Subject Hub only) | Subject Hub template |
 | `concepts` | Lecture note backlinks to concept pages | Lecture Note template |
+| `parcial` | Exam period for prep notes (`"Parcial 1"`, `"Final"`, etc.) | Parcial Prep Note template |
 
 - **Legacy compatibility:** Dashboards sort by `created` but automatically fall back to older `date` fields (or `file.ctime`) when that key is missing, so mixed notes continue to render correctly.
 - **Tags & slugs:** `toSlug` converts subject/tema names into lowercase hyphenated tags. Inline tags appear in lecture and general notes; hubs store them in `tags`.

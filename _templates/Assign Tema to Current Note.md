@@ -1,5 +1,11 @@
 <%*
 // Depends on: _templater_scripts/getUniversityContext.js, _templater_scripts/universityNoteUtils.js, _templater_scripts/universityConfig.js
+//
+// NOTE: This template intentionally does NOT set tR.
+// Its only output is a side-effect: app.fileManager.processFrontMatter()
+// writes the updated course/year/tema directly to the file via the Obsidian
+// API.  When triggered via "Insert template" (append mode), the empty tR
+// adds nothing to the file content — the existing note body is untouched.
 const currentFile = tp.config.target_file;
 if (!currentFile) {
   new Notice("⛔️ Abort: No active file to update.", 10_000);

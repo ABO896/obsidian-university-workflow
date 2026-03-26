@@ -29,6 +29,7 @@ const universityConfig = {
       lecture: "lecture",
       concept: "concept",
       "subject-hub": "subject-hub",
+      "parcial-prep": "parcial-prep",
       general: "general",
     },
   },
