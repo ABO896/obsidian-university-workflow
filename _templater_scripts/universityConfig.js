@@ -44,6 +44,8 @@ const universityConfig = {
       "parcial-prep": "parcial-prep",
       general: "general",
     },
+    // Ordered workflow stages used by the status picker and Dataview filters.
+    statuses: ["draft", "reviewed", "complete"],
   },
 };
 

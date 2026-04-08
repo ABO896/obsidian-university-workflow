@@ -393,6 +393,54 @@ describe('features.parcial flag', () => {
 });
 
 // ---------------------------------------------------------------------------
+// schema.statuses (used by Update Note Status template)
+// ---------------------------------------------------------------------------
+describe('schema.statuses', () => {
+  const path = require('path');
+  const requireScript = require(path.join(__dirname, '../_templater_scripts/scriptLoader.js'));
+
+  test('config exposes schema.statuses as an array', () => {
+    const getConfig = requireScript('universityConfig.js');
+    const config = getConfig();
+    assert.ok(Array.isArray(config.schema?.statuses), 'schema.statuses should be an array');
+  });
+
+  test('schema.statuses is non-empty', () => {
+    const getConfig = requireScript('universityConfig.js');
+    const config = getConfig();
+    assert.ok(config.schema.statuses.length > 0, 'schema.statuses should not be empty');
+  });
+
+  test('schema.statuses contains "draft"', () => {
+    const getConfig = requireScript('universityConfig.js');
+    const config = getConfig();
+    assert.ok(config.schema.statuses.includes('draft'), 'schema.statuses should include "draft"');
+  });
+
+  test('all status values are non-empty strings', () => {
+    const getConfig = requireScript('universityConfig.js');
+    const config = getConfig();
+    for (const status of config.schema.statuses) {
+      assert.equal(typeof status, 'string', `status "${status}" should be a string`);
+      assert.ok(status.trim().length > 0, `status should not be blank`);
+    }
+  });
+
+  test('schema object is exposed on the returned utils', () => {
+    const u = createUniversityNoteUtils();
+    assert.ok(u.schema && typeof u.schema === 'object', 'schema should be an object on utils');
+    assert.ok(Array.isArray(u.schema.statuses), 'schema.statuses should be an array on utils');
+  });
+
+  test('utils schema.statuses matches config schema.statuses', () => {
+    const getConfig = requireScript('universityConfig.js');
+    const config = getConfig();
+    const u = createUniversityNoteUtils();
+    assert.deepEqual(u.schema.statuses, config.schema.statuses);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // scriptLoader (smoke test)
 // ---------------------------------------------------------------------------
 describe('scriptLoader', () => {
