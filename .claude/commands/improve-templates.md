@@ -29,7 +29,7 @@ Summarise your findings before moving to Phase 2.
 
 ## Phase 2 — Read the Full Templater Documentation
 
-Read `.claude/skills/templater-docs/Templater.pdf` in full.
+Read `.claude/skills/templater-docs/templater-api.md` in full using the Read tool.
 
 Do not skip sections. Pay attention to:
 - Every module: `tp.date`, `tp.file`, `tp.frontmatter`, `tp.system`, `tp.web`, `tp.app`, `tp.config`, `tp.hooks`, `tp.obsidian`, `tp.user`

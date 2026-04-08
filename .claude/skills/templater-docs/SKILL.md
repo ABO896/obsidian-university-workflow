@@ -10,7 +10,7 @@ description: Full Obsidian Templater plugin documentation reference. Use this sk
 The complete, official Templater plugin documentation is bundled in this skill:
 
 ```
-Templater.pdf
+templater-api.md
 ```
 
 **Read it fully before writing or modifying any template.** Do not rely on training knowledge — the PDF is authoritative.
@@ -58,7 +58,7 @@ Never use raw JS when Templater has a native API. Examples of what NOT to do:
 
 ## Workflow
 
-1. **Read `Templater.pdf`** — the full official docs
+1. **Read `templater-api.md` using the Read tool.** — the full official docs
 2. Identify the exact `tp.*` APIs for the task
 3. Write idiomatic Templater code using native calls
 4. Audit existing templates for raw JS that can be replaced
