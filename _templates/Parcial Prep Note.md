@@ -136,6 +136,7 @@ const frontMatter = [
   parcialFmLine,
   `created: ${JSON.stringify(today)}`,
   "status: draft",
+  "aliases: []",
   "---",
 ]
   .filter(Boolean)

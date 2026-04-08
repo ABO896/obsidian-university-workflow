@@ -116,10 +116,10 @@ const needsMove = currentFile?.path !== destinationFilePath;
 // Falls back gracefully when multi_suggester isn't available (older installs).
 let conceptLinks = [];
 if (typeof tp.system.multi_suggester === "function") {
-  const allFiles = app.vault.getMarkdownFiles?.() ?? [];
+  const allFiles = tp.app.vault.getMarkdownFiles?.() ?? [];
   const conceptFiles = allFiles
     .filter((f) => {
-      const cache = app.metadataCache.getFileCache(f);
+      const cache = tp.app.metadataCache.getFileCache(f);
       return (
         cache?.frontmatter?.type === conceptType &&
         cache?.frontmatter?.course === subject
@@ -158,10 +158,10 @@ const conceptsLine =
 
 const frontMatter = [
   "---",
+  `type: ${lectureType}`,
   `course: ${JSON.stringify(subject)}`,
   year ? `year: ${JSON.stringify(year)}` : null,
   `tema: ${JSON.stringify(tema)}`,
-  `type: ${lectureType}`,
   `created: ${JSON.stringify(created)}`,
   "status: draft",
   `aliases: [${alias}]`,

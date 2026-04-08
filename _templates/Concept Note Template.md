@@ -96,13 +96,13 @@ const lectureTypeLiteral = JSON.stringify(lectureType);
 const frontmatterLines = [
   "---",
   `type: ${conceptType}`,
-  `tags: [${conceptType}]`,
   `course: ${JSON.stringify(selectedSubject)}`,
   selectedYear ? `year: ${JSON.stringify(selectedYear)}` : null,
   `tema: ${JSON.stringify(selectedTema)}`,
   `created: ${JSON.stringify(today)}`,
   "status: draft",
   "aliases: []",
+  `tags: [${conceptType}]`,
   "---",
 ]
   .filter(Boolean)

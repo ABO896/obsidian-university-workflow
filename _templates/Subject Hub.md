@@ -131,6 +131,8 @@ const frontMatter = [
   `course: ${JSON.stringify(selectedSubject)}`,
   selectedYear ? `year: ${JSON.stringify(selectedYear)}` : null,
   `created: ${JSON.stringify(created)}`,
+  "status: draft",
+  "aliases: []",
   tagsLine,
   `updated: ${JSON.stringify(updated)}`,
   "---",
