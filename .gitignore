@@ -12,6 +12,9 @@
 !README.md
 !.gitignore
 !AGENTS.md
+!.claude/
+!.claude/**
+!CLAUDE.md
 
 # Ignore macOS system files
 **/.DS_Store
