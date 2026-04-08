@@ -362,6 +362,37 @@ describe('normalizeYear', () => {
 });
 
 // ---------------------------------------------------------------------------
+// features.parcial flag (constants.isParcialEnabled)
+// ---------------------------------------------------------------------------
+describe('features.parcial flag', () => {
+  // Default config has features.parcial = false, so isParcialEnabled should be false.
+  test('isParcialEnabled is false by default', () => {
+    const defaultUtils = createUniversityNoteUtils();
+    assert.equal(defaultUtils.constants.isParcialEnabled, false);
+  });
+
+  test('isParcialEnabled is exposed via constants', () => {
+    // The value must be a boolean, not undefined.
+    assert.equal(typeof constants.isParcialEnabled, 'boolean');
+  });
+
+  test('features object is exposed on the returned utils', () => {
+    const u = createUniversityNoteUtils();
+    assert.ok(u.features && typeof u.features === 'object', 'features should be an object');
+  });
+
+  test('config has a features.parcial key', () => {
+    const path = require('path');
+    const requireScript = require(path.join(__dirname, '../_templater_scripts/scriptLoader.js'));
+    const getConfig = requireScript('universityConfig.js');
+    const config = getConfig();
+    assert.ok('features' in config, 'config should have features key');
+    assert.ok('parcial' in config.features, 'features should have parcial key');
+    assert.equal(typeof config.features.parcial, 'boolean');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // scriptLoader (smoke test)
 // ---------------------------------------------------------------------------
 describe('scriptLoader', () => {

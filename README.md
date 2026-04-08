@@ -43,8 +43,10 @@ University notes quickly sprawl across random folders, and every template tweak 
 - 🧭 Smart placement – helpers resolve subjects/years/temas and build folders on demand.
 - 🧩 Safe naming – sanitization + unique name checks prevent collisions and illegal characters.
 - 🚀 Dataview-ready – templates ship with tables, dashboards, and backlink queries that populate instantly.
-- 📚 Guarded workflows – untitled-note checks and prompts avoid overwriting existing files.
+- 📚 Guarded workflows – `tp.config.run_mode` + untitled-note checks prevent accidental overwrites.
 - 🔁 Reusable helpers – path logic, slugging, and normalization are shared for any new template you add.
+- 🎯 Multi-select concepts – Lecture Note uses `tp.system.multi_suggester` (Templater ≥ 2.16) to pre-tag which concepts a lecture covers.
+- 🔀 Optional exam-period grouping – `features.parcial` toggle (default off) enables Parcial/Semester folder organisation without affecting normal note creation.
 
 ## Quick Start
 
@@ -52,11 +54,13 @@ University notes quickly sprawl across random folders, and every template tweak 
 2. In Obsidian → *Settings → Templater*, point **Template folder** to `_templates` and **Script folder** to `_templater_scripts`.
 3. Reload Templater user scripts so `universityConfig`, `getUniversityContext`, and `universityNoteUtils` register.
 4. Enable the Dataview community plugin for dashboards and inline queries to render.
-5. Run a template (e.g., **Lecture Note**) from a new note and follow the prompts.
+5. Run a template via the command palette **"Templater: Create new note from template"** or open a fresh untitled note and trigger it from there.
 
-> **Heads up:** Lecture notes and subject hubs refuse to run on pre-named files to avoid misfiling. Create a fresh note before launching them.
+> **Tip:** Running templates via **"Create new note from template"** (Templater ≥ 2.1) skips the untitled-note requirement — Templater guarantees a fresh file in that mode (`tp.config.run_mode === 0`).
 >
-> **Docs source:** `Templater.pdf` in the vault root is the local reference used by this project for Templater behavior and API expectations.
+> **Tip:** For the Lecture Note, select relevant text before running the template and it pre-fills the topic prompt automatically (`tp.file.selection()`).
+>
+> **Requires Templater ≥ 2.16** for the multi-select concept tagging feature in Lecture Note. Older versions fall back gracefully (concepts array starts empty).
 
 ## How it works
 
@@ -75,25 +79,30 @@ The central config, `_templater_scripts/universityConfig.js`, powers every label
 ```js
 const universityConfig = {
   fs: {
-    universityRoot: "Universidad", // rename the base folder here
-    temaContainer: "Temas", // container for temas
+    universityRoot: “Universidad”, // rename the base folder here
+    temaContainer: “Temas”,        // container for topic folders
   },
   labels: {
-    general: "General", // label for catch-all notes & default tema
-    year: "Year", // metadata label for academic year
-    tema: "Tema", // rename to "Module" or similar
+    general: “General”, // catch-all label for notes & default tema
+    year: “Year”,       // academic year label
+    tema: “Tema”,       // rename to “Module”, “Topic”, etc.
+    parcial: “Parcial”, // rename to “Semester” or “Term” when features.parcial is true
   },
-  years: ["Year 1", "Year 2", "Year 3", "Year 4"], // optional year options
+  years: [“Year 1”, “Year 2”, “Year 3”, “Year 4”], // optional year picker options
+  features: {
+    parcial: false, // true = enable exam-period grouping (Parciales / Semesters)
+  },
 };
 ```
 
 <details>
 <summary>Common tweaks</summary>
 
-- **Change the base folder name.** Update `fs.universityRoot` to whatever root directory you prefer (e.g., `"Academics"`).
-- **Rename “Temas”.** Modify `fs.temaContainer` so placement helpers build folders with your terms.
-- **Switch labels in prompts.** Edit `labels.subject`, `labels.year`, or `labels.general` so prompts and notices use your language.
-- **Adjust default years.** Edit the `years` array so the optional year picker matches your curriculum.
+- **Change the base folder name.** Update `fs.universityRoot` (e.g., `”Academics”`, `”Uni”`).
+- **Rename “Temas”.** Modify `fs.temaContainer` so placement helpers use your vocabulary (e.g., `”Topics”`, `”Modules”`).
+- **Switch labels in prompts.** Edit `labels.subject`, `labels.year`, or `labels.general` for any language.
+- **Adjust default years.** Edit the `years` array to match your curriculum length.
+- **Enable exam-period grouping.** Set `features.parcial: true` to activate the Parcial/Semester folder layer. Rename `labels.parcial` to `”Semester”` or `”Term”` to match your institution's vocabulary. With this off (default), all parcial prompts and `Parciales/` folders are invisible.
 </details>
 
 Because templates read the config at runtime, you never hard-code translations—just change the config and reload Templater.
@@ -180,29 +189,26 @@ updated: "2024-05-03"
 ---
 ```
 
-### Parcial Prep Note
+### Parcial Prep Note (Study Guide)
 
-1. Create a new untitled note.
-2. Run **Parcial Prep Note**; the helper walks you through year → subject → **parcial** (exam period).
-3. The note is placed inside `<University>/<Year>/<Subject>/Parciales/<Parcial N>/`.
-4. Dataview dashboards surface all lectures and concepts for the selected subject/year automatically.
-5. Fill in Topics to Cover, Summary Notes, and Practice Questions; the formula table is ready for key facts.
+1. Create a new untitled note (or run via **"Create new note from template"**).
+2. Run **Parcial Prep Note**; the helper walks you through year → subject.
+   - When `features.parcial: true`, a third step prompts for the exam period (Parcial 1, Final, etc.) and the note is placed in `Parciales/<Parcial N>/`.
+   - When `features.parcial: false` (default), the note is placed at the subject root as a general study guide.
+3. Dataview tables surface all lectures and concepts for the selected course/year automatically.
+4. Fill in Topics to Cover, Summary Notes, and Practice Questions; the formula table is ready for key facts.
+5. Tab through the three cursor stops (topics → notes → questions) for fast entry.
 
 ```md
 ---
 type: parcial-prep
 course: "Physics I"
 year: "Year 1"
-parcial: "Parcial 2"
+parcial: "Parcial 2"   # only present when features.parcial: true
 created: "2024-05-03"
 status: draft
 ---
 ```
-
-> **Note:** This is the only template that prompts for a parcial (exam period). It exercises the
-> `includeParcial: true` path in `resolveSubjectAndParcial` and demonstrates how to scope notes
-> to a specific exam section. Tab through the three cursor stops to fill in topics, notes, and
-> practice questions.
 
 ### Assign Tema to Current Note
 
@@ -279,13 +285,15 @@ README.md                     # Documentation you are reading
  
 ## Troubleshooting
 
-- Template aborts immediately → You likely ran it on a named file; start from an untitled note for Lecture or Subject Hub.
+- Template aborts immediately → You likely ran it on a named file; start from an untitled note, or use **"Templater: Create new note from template"** which bypasses that check.
 - Helper not found → Re-check Templater script folder settings and reload user scripts.
 - Folders didn’t appear → Desktop Obsidian is required for folder creation; confirm filesystem permissions.
 - Template fails on mobile → Templater user functions (`tp.user.*`) are not available on Obsidian mobile.
 - Wrong year detected → Update frontmatter for that note or adjust `years` in config so normalization matches your naming.
 - Dataview outputs are empty → Ensure the plugin is enabled and notes contain the expected `type`, `course`, and tag metadata.
 - Tema assignment skipped → Run **Assign Tema** again and make sure you completed the prompts instead of cancelling.
+- Concept multi-select not showing → Update Templater to ≥ 2.16 for `tp.system.multi_suggester` support; older versions skip the step and leave `concepts: []`.
+- Parcial Prep Note doesn’t ask for a parcial → This is correct when `features.parcial: false` (the default). Set it to `true` in config to enable exam-period grouping.
 
 ## FAQ
 
@@ -302,6 +310,12 @@ README.md                     # Documentation you are reading
 **Can I avoid extra year prompts?** Yes; once a subject already has a consistent `year` in frontmatter, helpers auto-reuse it and stop asking unless there is ambiguity.
 
 **Do I need to write JavaScript?** Only for advanced extensions—the provided helpers cover placement, slugging, and normalization out of the box.
+
+**Do I need the parcial/semester system?** No — it is off by default (`features.parcial: false`). Enable it in config only if your curriculum uses distinct exam periods that you want to mirror in the folder structure.
+
+**Can I use semesters instead of parciales?** Yes — set `features.parcial: true` and change `labels.parcial` to `"Semester"` (or `"Term"`). Folder names and prompts will use your chosen label.
+
+**The concept multi-select doesn't appear when creating a lecture.** Update Templater to version 2.16 or newer. The feature uses `tp.system.multi_suggester` which was added in that release; older installs fall back silently.
 
 ## License
 
