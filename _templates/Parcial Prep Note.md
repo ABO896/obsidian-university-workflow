@@ -1,22 +1,25 @@
 <%*
 // Depends on: _templater_scripts/getUniversityContext.js, _templater_scripts/universityNoteUtils.js, _templater_scripts/universityConfig.js
 //
-// Creates an exam-prep note anchored to a specific subject + parcial (exam
-// period).  It is the only template that uses includeParcial: true, which
-// surfaces the year → subject → parcial selection flow and places the note
-// inside the Parciales/<Parcial N>/ folder automatically.
+// When features.parcial = true  → full parcial selection flow; note placed in
+//                                  Parciales/<Parcial N>/
+// When features.parcial = false → parcial step is skipped; becomes a generic
+//                                  subject-scoped Study Guide at the subject root
 
-// --- 0. GUARD: must run on a fresh Untitled note ---
+// --- 0. GUARD: must run on a fresh note ---
 const currentFile = tp.config.target_file;
 if (!currentFile) {
   new Notice("⛔️ Abort: Templater has no target file.", 10_000);
   return;
 }
 
-const basename = (currentFile.basename ?? "").toLowerCase();
-if (!basename.startsWith("untitled") && !basename.startsWith("sin título")) {
-  new Notice("⛔️ Abort: Template must be run in a new 'Untitled' note.", 10_000);
-  return;
+const isCreatingNewFile = tp.config.run_mode === 0;
+if (!isCreatingNewFile) {
+  const basename = (currentFile.basename ?? "").toLowerCase();
+  if (!basename.startsWith("untitled") && !basename.startsWith("sin título")) {
+    new Notice("⛔️ Abort: Template must be run in a new 'Untitled' note.", 10_000);
+    return;
+  }
 }
 
 // --- 1. LOAD UTILITIES ---
@@ -53,32 +56,37 @@ if (!generalLabel) {
   return;
 }
 
+// Read the feature flag from constants (mirrors config.features.parcial).
+const isParcialEnabled = constants?.isParcialEnabled === true;
+
 const noteTypes = schema?.types ?? {};
 const lectureType = noteTypes.lecture ?? "lecture";
 const conceptType = noteTypes.concept ?? "concept";
-const generalType = noteTypes.general ?? "general";
 const parcialPrepType = noteTypes["parcial-prep"] ?? "parcial-prep";
 
 const contextSubject = context?.subject ?? generalLabel;
 const contextYear = context?.year ?? tp.frontmatter?.year ?? null;
 const contextParcial = context?.parcial ?? generalLabel;
 
-// --- 2. RESOLVE PLACEMENT (year → subject → parcial dialogs) ---
-// includeParcial: true is what distinguishes this template from the others —
-// it surfaces the parcial selection step and places the note inside
-// Parciales/<Parcial N>/ rather than directly in the subject folder.
+// --- 2. RESOLVE PLACEMENT ---
+// When parcial is enabled: year → subject → parcial dialogs; note goes into
+//   Parciales/<Parcial N>/.
+// When parcial is disabled: year → subject only; note goes to subject root.
 const placement = await resolveSubjectAndParcial(tp, {
   currentFile,
   contextSubject,
   contextYear,
   contextParcial,
-  includeParcial: true,
+  // includeParcial is respected only when features.parcial = true in config;
+  // universityNoteUtils gates it automatically via effectiveIncludeParcial.
+  includeParcial: isParcialEnabled,
   promptYearWhen: "always",
 });
 
 const {
   baseUniversityPath,
   targetFolder,
+  subjectRootPath,
   subject: resolvedSubject = generalLabel,
   year: resolvedYear = null,
   parcial: resolvedParcial = generalLabel,
@@ -86,33 +94,46 @@ const {
 
 const subject = resolvedSubject || generalLabel;
 const year = resolvedYear?.toString().trim() || null;
-const parcial = resolvedParcial?.toString().trim() || generalLabel;
+const parcial = isParcialEnabled
+  ? resolvedParcial?.toString().trim() || generalLabel
+  : generalLabel;
 
-if (!targetFolder) {
+// Use subject root when parcial is disabled (avoid placing at university root).
+const effectiveFolder = isParcialEnabled
+  ? targetFolder
+  : (subjectRootPath || targetFolder);
+
+if (!effectiveFolder) {
   new Notice("⛔️ Abort: Could not determine destination folder.", 10_000);
   return;
 }
 
-await ensureFolderPath(targetFolder);
+await ensureFolderPath(effectiveFolder);
 
 // --- 3. BUILD FILE NAME ---
 const today = tp.date.now("YYYY-MM-DD");
-const parcialSuffix = parcial !== generalLabel ? ` - ${parcial}` : "";
+const parcialSuffix =
+  isParcialEnabled && parcial !== generalLabel ? ` - ${parcial}` : "";
 const baseTitle = sanitizeFileName(`${subject} Prep${parcialSuffix}`);
-const noteTitle = baseTitle || "Parcial Prep";
+const noteTitle = baseTitle || "Study Guide";
 const extension = currentFile?.extension ?? "md";
-const finalFileName = ensureUniqueFileName(targetFolder, noteTitle, extension);
-const destinationFilePath = `${targetFolder}/${finalFileName}.${extension}`;
-const destinationMovePath = `${targetFolder}/${finalFileName}`;
+const finalFileName = ensureUniqueFileName(effectiveFolder, noteTitle, extension);
+const destinationFilePath = `${effectiveFolder}/${finalFileName}.${extension}`;
+const destinationMovePath = `${effectiveFolder}/${finalFileName}`;
 const needsMove = currentFile?.path !== destinationFilePath;
 
 // --- 4. BUILD CONTENT ---
+const parcialFmLine =
+  isParcialEnabled && parcial !== generalLabel
+    ? `parcial: ${JSON.stringify(parcial)}`
+    : null;
+
 const frontMatter = [
   "---",
   `type: ${parcialPrepType}`,
   `course: ${JSON.stringify(subject)}`,
   year ? `year: ${JSON.stringify(year)}` : null,
-  `parcial: ${JSON.stringify(parcial)}`,
+  parcialFmLine,
   `created: ${JSON.stringify(today)}`,
   "status: draft",
   "---",
@@ -122,12 +143,11 @@ const frontMatter = [
 
 // Scope Dataview queries to the university root for performance.
 const dvSource = JSON.stringify(baseUniversityPath ?? "");
-const generalLiteral = JSON.stringify(generalLabel);
 const courseLiteral = JSON.stringify(subject);
 const yearLiteral = year ? JSON.stringify(year) : null;
 
 const headerTitle =
-  parcial !== generalLabel
+  isParcialEnabled && parcial !== generalLabel
     ? `${subject} — ${parcial} Study Guide`
     : `${subject} — Study Guide`;
 
@@ -151,9 +171,7 @@ lines.push("```dataview");
 lines.push(`TABLE default(created, default(date, file.ctime)) AS "Created", tema AS "Tema"`);
 lines.push(`FROM ${dvSource}`);
 lines.push(`WHERE course = ${courseLiteral} AND type = "${conceptType}"`);
-if (yearLiteral) {
-  lines.push(`AND year = ${yearLiteral}`);
-}
+if (yearLiteral) lines.push(`AND year = ${yearLiteral}`);
 lines.push(`SORT default(created, default(date, file.ctime)) ASC`);
 lines.push("```");
 lines.push("");
@@ -164,9 +182,7 @@ lines.push("```dataview");
 lines.push(`TABLE tema AS "Tema", default(created, default(date, file.ctime)) AS "Created"`);
 lines.push(`FROM ${dvSource}`);
 lines.push(`WHERE course = ${courseLiteral} AND type = "${lectureType}"`);
-if (yearLiteral) {
-  lines.push(`AND year = ${yearLiteral}`);
-}
+if (yearLiteral) lines.push(`AND year = ${yearLiteral}`);
 lines.push(`SORT default(created, default(date, file.ctime)) ASC`);
 lines.push("```");
 lines.push("");
@@ -176,14 +192,14 @@ lines.push("## ❓ Practice Questions");
 lines.push(`- [ ] ${tp.file.cursor(3)}`);
 lines.push("");
 
-// --- Formulas / key facts ---
+// --- Formulas / key facts table ---
 lines.push("## 🔑 Formulas & Key Facts");
 lines.push("| Item | Detail |");
 lines.push("| --- | --- |");
 lines.push("| | |");
 lines.push("");
 
-// --- Open tasks across the course ---
+// --- Open tasks ---
 lines.push("## ⏳ Open Tasks");
 lines.push("```dataview");
 lines.push(`TASK FROM ${dvSource}`);
@@ -198,5 +214,5 @@ tR = lines.join("\n");
 if (needsMove) {
   await tp.file.move(destinationMovePath);
 }
-new Notice(`📋 Prep note stored in ${targetFolder}`, 5_000);
+new Notice(`📋 Study guide stored in ${effectiveFolder}`, 5_000);
 %>

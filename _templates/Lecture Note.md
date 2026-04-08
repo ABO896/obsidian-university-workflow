@@ -1,17 +1,23 @@
 <%*
 // Depends on: _templater_scripts/getUniversityContext.js, _templater_scripts/universityNoteUtils.js, _templater_scripts/universityConfig.js
 
-// --- 0. GUARD: must run on a fresh Untitled note ---
+// --- 0. GUARD: must run on a fresh note ---
+// RunMode 0 (CreateNewFile) guarantees a brand-new file; skip the basename
+// check in that case.  For all other modes (hotkey on existing file, etc.)
+// we require the standard "Untitled" starting point.
 const currentFile = tp.config.target_file;
 if (!currentFile) {
   new Notice("⛔️ Abort: Templater has no target file.", 10_000);
   return;
 }
 
-const basename = currentFile.basename.toLowerCase();
-if (!basename.startsWith("untitled") && !basename.startsWith("sin título")) {
-  new Notice("⛔️ Abort: Template must be run in a new 'Untitled' note.", 10_000);
-  return;
+const isCreatingNewFile = tp.config.run_mode === 0;
+if (!isCreatingNewFile) {
+  const basename = currentFile.basename.toLowerCase();
+  if (!basename.startsWith("untitled") && !basename.startsWith("sin título")) {
+    new Notice("⛔️ Abort: Template must be run in a new 'Untitled' note.", 10_000);
+    return;
+  }
 }
 
 // --- 1. LOAD UTILITIES ---
@@ -50,6 +56,7 @@ if (!generalLabel) {
 
 const noteTypes = schema?.types ?? {};
 const lectureType = noteTypes.lecture ?? "lecture";
+const conceptType = noteTypes.concept ?? "concept";
 const codeLanguage = constants?.codeLanguage ?? "";
 
 const contextSubject = context?.subject ?? generalLabel;
@@ -83,12 +90,17 @@ if (!targetFolder) {
 
 await ensureFolderPath(targetFolder);
 
-// --- 3. PROMPT FOR TOPIC & DEFINE FILE NAME ---
-const today = tp.date.now("YYYY-MM-DD");
-const topicInput = await tp.system.prompt("Lecture Topic (optional)");
+// --- 3. PROMPT FOR TOPIC ---
+// Pre-fill with any text the user had selected before running the template.
+const selectionDefault = tp.file.selection?.() ?? "";
+const topicInput = await tp.system.prompt(
+  "Lecture Topic (optional)",
+  selectionDefault || null
+);
 const rawTopic = topicInput?.trim();
 const safeTopic = sanitizeFileName(rawTopic) || "Untitled Topic";
 
+const today = tp.date.now("YYYY-MM-DD");
 const baseTitle = sanitizeFileName(`Lecture ${today}`);
 const noteTitle = rawTopic ? sanitizeFileName(`${baseTitle} - ${safeTopic}`) : baseTitle;
 const headingTitle = rawTopic ? safeTopic : noteTitle;
@@ -98,7 +110,37 @@ const destinationFilePath = `${targetFolder}/${finalFileName}.${extension}`;
 const destinationMovePath = `${targetFolder}/${finalFileName}`;
 const needsMove = currentFile?.path !== destinationFilePath;
 
-// --- 4. BUILD CONTENT ---
+// --- 4. MULTI-SELECT CONCEPTS (tp.system.multi_suggester — Templater ≥ 2.16) ---
+// Discover concept notes already filed under the same course and offer
+// a multi-select so the student can tag which concepts this lecture covers.
+// Falls back gracefully when multi_suggester isn't available (older installs).
+let conceptLinks = [];
+if (typeof tp.system.multi_suggester === "function") {
+  const allFiles = app.vault.getMarkdownFiles?.() ?? [];
+  const conceptFiles = allFiles
+    .filter((f) => {
+      const cache = app.metadataCache.getFileCache(f);
+      return (
+        cache?.frontmatter?.type === conceptType &&
+        cache?.frontmatter?.course === subject
+      );
+    })
+    .sort((a, b) => a.basename.localeCompare(b.basename));
+
+  if (conceptFiles.length > 0) {
+    const picked = await tp.system.multi_suggester(
+      conceptFiles.map((f) => f.basename),
+      conceptFiles,
+      false,
+      "Concepts covered in this lecture (multi-select, optional)"
+    );
+    if (Array.isArray(picked) && picked.length > 0) {
+      conceptLinks = picked.map((f) => `"[[${f.basename}]]"`);
+    }
+  }
+}
+
+// --- 5. BUILD CONTENT ---
 const subjectSlug = toSlug(subject);
 const temaSlug = toSlug(tema);
 const lectureTags =
@@ -111,6 +153,8 @@ const lectureTags =
     .join(" ");
 const alias = JSON.stringify(headingTitle);
 const created = today;
+const conceptsLine =
+  conceptLinks.length > 0 ? `concepts: [${conceptLinks.join(", ")}]` : "concepts: []";
 
 const frontMatter = [
   "---",
@@ -121,7 +165,7 @@ const frontMatter = [
   `created: ${JSON.stringify(created)}`,
   "status: draft",
   `aliases: [${alias}]`,
-  "concepts: []",
+  conceptsLine,
   "---",
 ]
   .filter(Boolean)
@@ -147,7 +191,7 @@ content += `## 🧠 Questions I Still Have\n- [ ] ${tp.file.cursor(3)}\n`;
 
 tR = content;
 
-// --- 5. PLACE FILE ---
+// --- 6. PLACE FILE ---
 if (needsMove) {
   await tp.file.move(destinationMovePath);
 }

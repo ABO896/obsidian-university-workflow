@@ -2,10 +2,11 @@
 // Depends on: _templater_scripts/getUniversityContext.js, _templater_scripts/universityNoteUtils.js, _templater_scripts/universityConfig.js
 //
 // NOTE: This template intentionally does NOT set tR.
-// Its only output is a side-effect: app.fileManager.processFrontMatter()
-// writes the updated course/year/tema directly to the file via the Obsidian
-// API.  When triggered via "Insert template" (append mode), the empty tR
-// adds nothing to the file content — the existing note body is untouched.
+// Frontmatter is updated via tp.hooks.on_all_templates_executed(), which fires
+// after Templater finishes its own write pass.  Using the hook avoids the race
+// condition where an inline processFrontMatter() call could be overwritten by
+// Templater's own file write immediately afterward.
+// The empty tR adds nothing to the file body — existing note content is kept.
 const currentFile = tp.config.target_file;
 if (!currentFile) {
   new Notice("⛔️ Abort: No active file to update.", 10_000);
@@ -75,22 +76,29 @@ const tema = resolvedTema?.toString().trim() || generalLabel;
 const subject = resolvedSubject || generalLabel;
 
 const extension = currentFile.extension ?? "md";
-const destinationFilePath = `${targetFolder}/${currentFile.basename}.${extension}`;
 const destinationMovePath = `${targetFolder}/${currentFile.basename}`;
+const destinationFilePath = `${destinationMovePath}.${extension}`;
 const needsMove = currentFile.path !== destinationFilePath;
 
 if (needsMove) {
   await tp.file.move(destinationMovePath);
 }
 
-await app.fileManager.processFrontMatter(currentFile, (frontmatter) => {
-  frontmatter.course = subject;
-  if (resolvedYear) {
-    frontmatter.year = resolvedYear;
-  } else {
-    delete frontmatter.year;
-  }
-  frontmatter.tema = tema;
+// Schedule the frontmatter write to happen AFTER Templater has finished its
+// own file operations.  tp.hooks.on_all_templates_executed() is the pattern
+// recommended by Templater docs for safe post-execution side-effects.
+tp.hooks.on_all_templates_executed(async () => {
+  // Re-resolve the file reference in case the move changed its path.
+  const targetFile = app.vault.getAbstractFileByPath(destinationFilePath) ?? currentFile;
+  await app.fileManager.processFrontMatter(targetFile, (frontmatter) => {
+    frontmatter.course = subject;
+    if (resolvedYear) {
+      frontmatter.year = resolvedYear;
+    } else {
+      delete frontmatter.year;
+    }
+    frontmatter.tema = tema;
+  });
 });
 
 const subjectTag = toSlug(subject);

@@ -1,17 +1,21 @@
 <%*
 // Depends on: _templater_scripts/getUniversityContext.js, _templater_scripts/universityNoteUtils.js, _templater_scripts/universityConfig.js
 
-// --- 0. GUARD: must run on a fresh Untitled note ---
+// --- 0. GUARD: must run on a fresh note ---
+// RunMode 0 (CreateNewFile) guarantees a brand-new file from Templater itself.
 const currentFile = tp.config.target_file;
 if (!currentFile) {
   new Notice("⛔️ Abort: Templater has no target file.", 10_000);
   return;
 }
 
-const basename = (currentFile.basename ?? "").toLowerCase();
-if (!basename.startsWith("untitled") && !basename.startsWith("sin título")) {
-  new Notice("⛔️ Abort: Template must be run in a new 'Untitled' note.", 10_000);
-  return;
+const isCreatingNewFile = tp.config.run_mode === 0;
+if (!isCreatingNewFile) {
+  const basename = (currentFile.basename ?? "").toLowerCase();
+  if (!basename.startsWith("untitled") && !basename.startsWith("sin título")) {
+    new Notice("⛔️ Abort: Template must be run in a new 'Untitled' note.", 10_000);
+    return;
+  }
 }
 
 // --- 1. LOAD UTILITIES ---

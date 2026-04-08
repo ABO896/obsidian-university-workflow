@@ -21,9 +21,14 @@ function universityNoteUtils() {
 
   const fsConfig = config.fs ?? {};
   const labels = config.labels ?? {};
+  const features = config.features ?? {};
   const years = Array.isArray(config.years) ? [...config.years] : [];
   const parciales = Array.isArray(config.parciales) ? [...config.parciales] : [];
   const schema = config.schema ?? {};
+
+  // When false (default), all parcial prompts and Parciales/ folder logic are
+  // suppressed regardless of any includeParcial flag passed to the resolvers.
+  const IS_PARCIAL_ENABLED = features.parcial === true;
 
   if (!labels.general) {
     throw new Error("University config must define labels.general.");
@@ -595,11 +600,14 @@ function universityNoteUtils() {
       : yearRootPath;
 
     let parcialOptions = [];
-    let parcial = includeParcial ? normalizeParcial(contextParcial) : null;
+    // Parcial prompts are suppressed when the feature is disabled in config,
+    // even if a caller passes includeParcial: true.
+    const effectiveIncludeParcial = includeParcial && IS_PARCIAL_ENABLED;
+    let parcial = effectiveIncludeParcial ? normalizeParcial(contextParcial) : null;
     let parcialFolderName = null;
     let targetFolder = subjectRootPath;
 
-    if (includeParcial) {
+    if (effectiveIncludeParcial) {
       const parcialOptionsBase = parcialOptionsInput ?? parciales;
 
       parcialOptions = reorderWithPreference(parcialOptionsBase, normalizeParcial(contextParcial));
@@ -761,12 +769,15 @@ function universityNoteUtils() {
     parcialContainer: PARCIAL_CONTAINER_NAME,
     temaContainer: TEMA_CONTAINER_NAME,
     codeLanguage,
+    // Mirrors features.parcial so templates can branch without re-reading config.
+    isParcialEnabled: IS_PARCIAL_ENABLED,
   };
 
   return {
     config,
     fsConfig,
     labels,
+    features,
     years,
     parciales,
     schema,

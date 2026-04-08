@@ -17,6 +17,7 @@ const createUniversityNoteUtils = requireScript("universityNoteUtils.js");
 let _initialized = false;
 let _GENERAL_LABEL;
 let _UNIVERSITY_ROOT;
+let _IS_PARCIAL_ENABLED;
 let _normalizeParcial;
 let _normalizeYear;
 
@@ -43,6 +44,10 @@ function init() {
     throw new Error("University config must define fs.universityRoot.");
   }
 
+  // Mirror the features.parcial flag so context inference skips parcial path
+  // scanning when the feature is disabled.
+  _IS_PARCIAL_ENABLED = universityConfig?.features?.parcial === true;
+
   const utils = createUniversityNoteUtils();
   _normalizeParcial = utils.normalizeParcial;
   _normalizeYear = utils.normalizeYear;
@@ -55,6 +60,7 @@ function getUniversityContext(targetFile) {
 
   const GENERAL_LABEL = _GENERAL_LABEL;
   const UNIVERSITY_ROOT = _UNIVERSITY_ROOT;
+  const IS_PARCIAL_ENABLED = _IS_PARCIAL_ENABLED;
   const normalizeParcial = _normalizeParcial;
   const normalizeYear = _normalizeYear;
 
@@ -82,8 +88,12 @@ function getUniversityContext(targetFile) {
   const subjectCandidate = firstSegmentIsYear ? relativeParts[1] : relativeParts[0];
   const subject = subjectCandidate || GENERAL_LABEL;
 
+  // Only infer parcial from the file path when the feature is enabled;
+  // otherwise always return the general label to keep context clean.
   const searchParts = firstSegmentIsYear ? relativeParts.slice(1) : relativeParts;
-  const parcialCandidate = searchParts.find((part = "") => normalizeParcial(part) !== GENERAL_LABEL);
+  const parcialCandidate = IS_PARCIAL_ENABLED
+    ? searchParts.find((part = "") => normalizeParcial(part) !== GENERAL_LABEL)
+    : undefined;
   const parcial = normalizeParcial(parcialCandidate);
 
   return { subject, year, parcial };
