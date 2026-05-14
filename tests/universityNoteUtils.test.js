@@ -466,6 +466,19 @@ describe('scriptLoader', () => {
 });
 
 // ---------------------------------------------------------------------------
+// resolvePlacement (renamed from resolveSubjectAndParcial)
+// ---------------------------------------------------------------------------
+describe('resolvePlacement alias', () => {
+  test('resolvePlacement is a function', () => {
+    assert.equal(typeof utils.resolvePlacement, 'function');
+  });
+
+  test('resolveSubjectAndParcial is a deprecated alias pointing to resolvePlacement', () => {
+    assert.equal(utils.resolveSubjectAndParcial, utils.resolvePlacement);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // buildConceptBacklinksBlock
 // ---------------------------------------------------------------------------
 describe('buildConceptBacklinksBlock', () => {

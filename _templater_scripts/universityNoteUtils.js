@@ -485,7 +485,7 @@ function universityNoteUtils() {
     return sortCaseInsensitive(dedupePreserveOrder(yearValues));
   }
 
-  async function resolveSubjectAndParcial(
+  async function resolvePlacement(
     tp,
     {
       currentFile,
@@ -663,7 +663,7 @@ function universityNoteUtils() {
       ...rest
     } = {}
   ) {
-    const placement = await resolveSubjectAndParcial(tp, {
+    const placement = await resolvePlacement(tp, {
       ...rest,
       includeParcial,
     });
@@ -848,7 +848,8 @@ function universityNoteUtils() {
     reorderWithPreference,
     reorderOptions: reorderWithPreference,
     buildSubjectOptions,
-    resolveSubjectAndParcial,
+    resolvePlacement,
+    resolveSubjectAndParcial: resolvePlacement,
     resolveSubjectParcialTema,
     buildConceptBacklinksBlock,
   };
