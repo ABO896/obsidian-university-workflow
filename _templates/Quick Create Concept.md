@@ -1,5 +1,5 @@
 <%*
-// Depends on: _templater_scripts/getUniversityContext.js, _templater_scripts/universityNoteUtils.js, _templater_scripts/universityConfig.js
+// Depends on: _templater_scripts/templateBootstrap.js
 //
 // Utility template: run on any lecture or general note to quickly spin up a
 // linked concept note from a text selection (or manual prompt), then wire it
@@ -17,47 +17,24 @@
 // NOTE: This template intentionally does NOT set tR — the current note body
 // is left untouched; only the cursor position and frontmatter are modified.
 
-const currentFile = tp.config.target_file;
-if (!currentFile) {
-  new Notice("⛔️ Abort: No active file.", 10_000);
-  return;
-}
-
-// --- 1. LOAD UTILITIES ---
-const getConfig = tp.user.universityConfig;
-const config = typeof getConfig === "function" ? await getConfig() : null;
-const configLabels = config?.labels ?? {};
-
-const context = await tp.user.getUniversityContext(currentFile);
-
-const noteUtils = await tp.user.universityNoteUtils();
+// --- 0. BOOTSTRAP ---
+const ctx = await tp.user.templateBootstrap(tp);
+if (!ctx) return;
+const { currentFile, noteUtils, generalLabel, schema, constants, context } = ctx;
 const {
   ensureFolderPath,
   ensureUniqueFileName,
   sanitizeFileName,
   toSlug,
   resolveSubjectParcialTema,
-  constants = {},
-  schema = {},
-} = noteUtils ?? {};
-
-if (!noteUtils || !resolveSubjectParcialTema) {
-  new Notice("⛔️ Abort: University note utilities are unavailable.", 10_000);
-  return;
-}
-
-const generalLabel = constants?.general ?? configLabels.general;
-if (!generalLabel) {
-  new Notice("⛔️ Abort: University general label is not configured.", 10_000);
-  return;
-}
+} = noteUtils;
 
 const noteTypes = schema?.types ?? {};
 const conceptType = noteTypes.concept ?? "concept";
 const lectureType = noteTypes.lecture ?? "lecture";
 const codeLanguage = constants?.codeLanguage ?? "";
 
-// --- 2. GET CONCEPT NAME ---
+// --- 1. GET CONCEPT NAME ---
 // Pre-fill with any text the user had selected before running the template.
 const selectionDefault = tp.file.selection?.() ?? "";
 const nameInput = await tp.system.prompt(
@@ -76,7 +53,7 @@ if (!conceptName) {
   return;
 }
 
-// --- 3. RESOLVE PLACEMENT ---
+// --- 2. RESOLVE PLACEMENT ---
 // Inherit subject/year/tema from the current note's frontmatter so that
 // dialogs only appear when something is genuinely ambiguous.
 const contextSubject = tp.frontmatter?.course ?? context?.subject ?? generalLabel;
@@ -117,12 +94,9 @@ const tema = resolvedTema?.toString().trim() || generalLabel;
 const extension = "md";
 const finalFileName = ensureUniqueFileName(targetFolder, conceptName, extension);
 
-// --- 4. BUILD CONCEPT NOTE CONTENT ---
+// --- 3. BUILD CONCEPT NOTE CONTENT ---
 // Mirror the structure of Concept Note Template so Dataview queries are compatible.
 const today = tp.date.now("YYYY-MM-DD");
-const dvSource = JSON.stringify(baseUniversityPath ?? "");
-const generalLiteral = JSON.stringify(generalLabel);
-const lectureTypeLiteral = JSON.stringify(lectureType);
 
 const frontmatterLines = [
   "---",
@@ -139,40 +113,11 @@ const frontmatterLines = [
   .filter(Boolean)
   .join("\n");
 
-// Dataview block identical to the one in Concept Note Template so backlinks
-// surface automatically once lectures reference this concept.
-const dataviewBlock = [
-  "```dataviewjs",
-  `const concept = dv.current();`,
-  `const targetCourse = concept.course ?? ${generalLiteral};`,
-  `const targetName = (concept.file?.name ?? "").toLowerCase();`,
-  `const targetPath = concept.file?.path ?? "";`,
-  ``,
-  `const allowedTypes = new Set([${lectureTypeLiteral}]);`,
-  `const sortValue = (page) => page.created ?? page.date ?? page.file?.ctime;`,
-  ``,
-  `const matches = dv`,
-  `  .pages(${dvSource})`,
-  `  .where((page) => (page.course ?? ${generalLiteral}) === targetCourse)`,
-  `  .where((page) => allowedTypes.has((page.type ?? "").toLowerCase()))`,
-  `  .where((page) => {`,
-  `    const concepts = Array.isArray(page.concepts) ? page.concepts : [];`,
-  `    const conceptMatch = concepts.some((entry) => {`,
-  `      if (!entry) return false;`,
-  `      const entryValue = entry.path ?? entry.toString?.() ?? entry;`,
-  `      if (!entryValue) return false;`,
-  `      const lowered = entryValue.toString().toLowerCase();`,
-  `      return lowered === targetName || lowered === targetPath.toLowerCase();`,
-  `    });`,
-  `    const linkMatch = (page.file?.outlinks ?? []).some((link) => link.path === targetPath);`,
-  `    return conceptMatch || linkMatch;`,
-  `  })`,
-  `  .array()`,
-  `  .sort((a, b) => dv.compare(sortValue(a), sortValue(b)));`,
-  ``,
-  `dv.list(matches.map((page) => page.file.link));`,
-  "```",
-].join("\n");
+const dataviewBlock = noteUtils.buildConceptBacklinksBlock({
+  baseUniversityPath,
+  generalLabel,
+  lectureType,
+});
 
 const conceptContent = [
   frontmatterLines,
@@ -200,13 +145,13 @@ const conceptContent = [
   "",
 ].join("\n");
 
-// --- 5. CREATE THE CONCEPT NOTE ---
+// --- 4. CREATE THE CONCEPT NOTE ---
 // tp.file.create_new writes the note directly — no move needed since we
 // specify the target folder up front.
 const tFolder = tp.app.vault.getAbstractFileByPath(targetFolder);
 await tp.file.create_new(conceptContent, finalFileName, false, tFolder ?? targetFolder);
 
-// --- 6. WIRE INTO THE CURRENT NOTE ---
+// --- 5. WIRE INTO THE CURRENT NOTE ---
 // Append [[link]] at the active editor cursor so the student can place it
 // exactly where they need it in the lecture note body.
 tp.file.cursor_append(`[[${finalFileName}]]`);
