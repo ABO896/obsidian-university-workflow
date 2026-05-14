@@ -33,11 +33,12 @@ async function templateBootstrap(tp, { requireNewFile = false } = {}) {
   const config = typeof getConfig === "function" ? await getConfig() : null;
   const configLabels = config?.labels ?? {};
 
-  const context = await tp.user.getUniversityContext(currentFile);
-
-  const noteUtils = await tp.user.universityNoteUtils();
-  if (!noteUtils) {
-    new Notice("⛔️ Abort: University note utilities are unavailable.", 10_000);
+  let context, noteUtils;
+  try {
+    context = tp.user.getUniversityContext(currentFile);
+    noteUtils = tp.user.universityNoteUtils();
+  } catch (err) {
+    new Notice(`⛔️ Abort: University note utilities are unavailable — ${err.message}`, 10_000);
     return null;
   }
 
