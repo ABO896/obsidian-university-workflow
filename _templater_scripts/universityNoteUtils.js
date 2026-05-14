@@ -756,10 +756,12 @@ function universityNoteUtils() {
     };
   }
 
+  // Generates the dataviewjs backlinks block for a concept note. Both templates
+  // that create concept notes call this so the query stays in one place.
   function buildConceptBacklinksBlock({ baseUniversityPath, generalLabel: label, lectureType: lType }) {
     const dvSource = JSON.stringify(baseUniversityPath ?? "");
-    const generalLiteral = JSON.stringify(label);
-    const lectureTypeLiteral = JSON.stringify(lType);
+    const generalLiteral = JSON.stringify(label ?? "");
+    const lectureTypeLiteral = JSON.stringify(lType ?? "");
 
     return [
       "```dataviewjs",
