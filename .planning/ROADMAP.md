@@ -11,6 +11,12 @@
 
 **Requirements covered:** AUDIT-01, AUDIT-02, AUDIT-03, AUDIT-04, AUDIT-05
 
+**Plans:** 2 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Read all 16 source files and write AUDIT.md violation sections (Config-Purity, Templater-Native, Zero-Friction)
+- [ ] 01-02-PLAN.md — Write Expansion Opportunities section and commit the complete AUDIT.md
+
 **Success Criteria:**
 1. Every file in `_templates/` and `_templater_scripts/` has been reviewed against all three ethos dimensions
 2. `AUDIT.md` is written with violations grouped by dimension and severity (critical / minor)
