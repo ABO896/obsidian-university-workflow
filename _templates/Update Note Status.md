@@ -18,31 +18,18 @@
 // NOTE: This template intentionally does NOT set tR — no note body is modified.
 // The active file when the template is triggered is irrelevant; any note works.
 
-const currentFile = tp.config.target_file;
-if (!currentFile) {
-  new Notice("⛔️ Abort: No active file.", 10_000);
-  return;
-}
+// --- 0. BOOTSTRAP ---
+const ctx = await tp.user.templateBootstrap(tp);
+if (!ctx) return;
+const { noteUtils, schema } = ctx;
 
-// --- 1. LOAD UTILITIES ---
-const noteUtils = await tp.user.universityNoteUtils();
-const { constants = {}, schema = {} } = noteUtils ?? {};
-
-if (!noteUtils) {
-  new Notice("⛔️ Abort: University note utilities are unavailable.", 10_000);
-  return;
-}
-
-// Status values come from config so they stay in sync with any customisation.
-// Fall back to a sensible default only if the config key is absent.
 const statuses = Array.isArray(schema?.statuses) && schema.statuses.length > 0
   ? schema.statuses
   : ["draft", "reviewed", "complete"];
 
-// Use the configured type values to filter for university-style notes.
 const knownTypes = new Set(Object.values(schema?.types ?? {}));
 
-// --- 2. PICK TARGET STATUS ---
+// --- 1. PICK TARGET STATUS ---
 if (typeof tp.system.multi_suggester !== "function") {
   new Notice("⛔️ Abort: tp.system.multi_suggester requires Templater ≥ 2.16.", 10_000);
   return;
@@ -60,7 +47,7 @@ if (!newStatus) {
   return;
 }
 
-// --- 3. DISCOVER CANDIDATES ---
+// --- 2. DISCOVER CANDIDATES ---
 // Only show notes that:
 //   • have a recognized university type (lecture, concept, general, etc.)
 //   • have a status field
@@ -91,7 +78,7 @@ const displayLabels = candidates.map((f) => {
   return `${f.basename}${courseTag} (${fm.status})`;
 });
 
-// --- 4. MULTI-SELECT ---
+// --- 3. MULTI-SELECT ---
 const picked = await tp.system.multi_suggester(
   displayLabels,
   candidates,
@@ -104,7 +91,7 @@ if (!Array.isArray(picked) || picked.length === 0) {
   return;
 }
 
-// --- 5. UPDATE FRONTMATTER IN HOOK ---
+// --- 4. UPDATE FRONTMATTER IN HOOK ---
 // Running inside the hook avoids the race condition where Templater's own
 // write pass could overwrite a processFrontMatter call made earlier.
 tp.hooks.on_all_templates_executed(async () => {

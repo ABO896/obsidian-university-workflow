@@ -1,5 +1,5 @@
 <%*
-// Depends on: _templater_scripts/getUniversityContext.js, _templater_scripts/universityNoteUtils.js, _templater_scripts/universityConfig.js
+// Depends on: _templater_scripts/templateBootstrap.js
 //
 // NOTE: This template intentionally does NOT set tR.
 // Frontmatter is updated via tp.hooks.on_all_templates_executed(), which fires
@@ -7,42 +7,20 @@
 // condition where an inline processFrontMatter() call could be overwritten by
 // Templater's own file write immediately afterward.
 // The empty tR adds nothing to the file body — existing note content is kept.
-const currentFile = tp.config.target_file;
-if (!currentFile) {
-  new Notice("⛔️ Abort: No active file to update.", 10_000);
-  return;
-}
 
-const context = await tp.user.getUniversityContext(currentFile);
-const getConfig = tp.user.universityConfig;
-const config = typeof getConfig === "function" ? await getConfig() : null;
-const configLabels = config?.labels ?? {};
-
-const { subject: contextSubjectRaw, year: contextYearRaw } = context ?? {};
-const contextTemaRaw = tp.frontmatter?.tema;
-
-const noteUtils = await tp.user.universityNoteUtils();
+// --- 0. BOOTSTRAP ---
+const ctx = await tp.user.templateBootstrap(tp);
+if (!ctx) return;
+const { currentFile, noteUtils, generalLabel, context } = ctx;
 const {
   ensureFolderPath,
   toSlug,
   resolveSubjectParcialTema,
-  constants = {},
-  schema = {},
-} = noteUtils ?? {};
+} = noteUtils;
 
-if (!noteUtils || !resolveSubjectParcialTema) {
-  new Notice("⛔️ Abort: Placement helper unavailable.", 10_000);
-  return;
-}
-
-const generalLabel = constants?.general ?? configLabels.general;
-if (!generalLabel) {
-  new Notice("⛔️ Abort: University general label is not configured.", 10_000);
-  return;
-}
-const contextTema = contextTemaRaw ?? generalLabel;
-const contextSubject = contextSubjectRaw ?? generalLabel;
-const contextYear = contextYearRaw ?? tp.frontmatter?.year ?? null;
+const contextTema = tp.frontmatter?.tema ?? generalLabel;
+const contextSubject = context?.subject ?? generalLabel;
+const contextYear = context?.year ?? tp.frontmatter?.year ?? null;
 
 const placement = await resolveSubjectParcialTema(tp, {
   currentFile,

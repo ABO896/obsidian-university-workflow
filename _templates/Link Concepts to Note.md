@@ -16,48 +16,26 @@
 //
 // NOTE: This template intentionally does NOT set tR — the note body is untouched.
 
-const currentFile = tp.config.target_file;
-if (!currentFile) {
-  new Notice("⛔️ Abort: No active file.", 10_000);
-  return;
-}
-
-// --- 1. LOAD UTILITIES ---
-const getConfig = tp.user.universityConfig;
-const config = typeof getConfig === "function" ? await getConfig() : null;
-const configLabels = config?.labels ?? {};
-
-const context = await tp.user.getUniversityContext(currentFile);
-
-const noteUtils = await tp.user.universityNoteUtils();
-const { constants = {}, schema = {} } = noteUtils ?? {};
-
-if (!noteUtils) {
-  new Notice("⛔️ Abort: University note utilities are unavailable.", 10_000);
-  return;
-}
-
-const generalLabel = constants?.general ?? configLabels.general;
-if (!generalLabel) {
-  new Notice("⛔️ Abort: University general label is not configured.", 10_000);
-  return;
-}
+// --- 0. BOOTSTRAP ---
+const ctx = await tp.user.templateBootstrap(tp);
+if (!ctx) return;
+const { currentFile, noteUtils, generalLabel, schema, context } = ctx;
 
 const noteTypes = schema?.types ?? {};
 const conceptType = noteTypes.concept ?? "concept";
 
-// --- 2. RESOLVE COURSE SCOPE ---
+// --- 1. RESOLVE COURSE SCOPE ---
 // Frontmatter takes precedence over path-inferred context so manual edits
 // to the course key are respected.
 const course = tp.frontmatter?.course ?? context?.subject ?? generalLabel;
 
-// --- 3. GUARD: multi_suggester is required ---
+// --- 2. GUARD: multi_suggester is required ---
 if (typeof tp.system.multi_suggester !== "function") {
   new Notice("⛔️ Abort: tp.system.multi_suggester requires Templater ≥ 2.16.", 10_000);
   return;
 }
 
-// --- 4. DISCOVER CONCEPT NOTES FOR THIS COURSE ---
+// --- 3. DISCOVER CONCEPT NOTES FOR THIS COURSE ---
 const allFiles = tp.app.vault.getMarkdownFiles?.() ?? [];
 const conceptFiles = allFiles
   .filter((f) => {
@@ -101,7 +79,7 @@ const displayLabels = conceptFiles.map((f) =>
   existingNames.has(f.basename.toLowerCase()) ? `✓ ${f.basename}` : f.basename
 );
 
-// --- 5. MULTI-SELECT CONCEPTS ---
+// --- 4. MULTI-SELECT CONCEPTS ---
 const picked = await tp.system.multi_suggester(
   displayLabels,
   conceptFiles,
@@ -114,7 +92,7 @@ if (!Array.isArray(picked) || picked.length === 0) {
   return;
 }
 
-// --- 6. UPDATE FRONTMATTER ---
+// --- 5. UPDATE FRONTMATTER ---
 const currentFilePath = currentFile.path;
 const newLinks = picked.map((f) => `[[${f.basename}]]`);
 
