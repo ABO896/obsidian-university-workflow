@@ -39,16 +39,16 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUDIT-01 | Phase 1 | Pending |
-| AUDIT-02 | Phase 1 | Pending |
-| AUDIT-03 | Phase 1 | Pending |
-| AUDIT-04 | Phase 1 | Pending |
-| AUDIT-05 | Phase 1 | Pending |
-| DOCS-01 | Phase 2 | Pending |
-| DOCS-02 | Phase 2 | Pending |
-| DOCS-03 | Phase 2 | Pending |
-| DOCS-04 | Phase 2 | Pending |
-| DOCS-05 | Phase 2 | Pending |
+| AUDIT-01 | Phase 1: Ethos Audit | Pending |
+| AUDIT-02 | Phase 1: Ethos Audit | Pending |
+| AUDIT-03 | Phase 1: Ethos Audit | Pending |
+| AUDIT-04 | Phase 1: Ethos Audit | Pending |
+| AUDIT-05 | Phase 1: Ethos Audit | Pending |
+| DOCS-01 | Phase 2: Documentation Overhaul | Pending |
+| DOCS-02 | Phase 2: Documentation Overhaul | Pending |
+| DOCS-03 | Phase 2: Documentation Overhaul | Pending |
+| DOCS-04 | Phase 2: Documentation Overhaul | Pending |
+| DOCS-05 | Phase 2: Documentation Overhaul | Pending |
 
 **Coverage:**
 - v1 requirements: 10 total
