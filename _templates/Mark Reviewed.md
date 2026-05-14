@@ -17,9 +17,16 @@
 // --- 0. BOOTSTRAP ---
 const ctx = await tp.user.templateBootstrap(tp);
 if (!ctx) return;
-const { currentFile, config } = ctx;
+const { currentFile, config, schema } = ctx;
 
 const reviewIntervals = config?.schema?.reviewIntervals ?? { easy: 14, medium: 7, hard: 3, blank: 1 };
+
+// Guard: this utility is only meaningful on concept notes.
+const conceptType = schema?.types?.concept ?? "concept";
+if (tp.frontmatter?.type !== conceptType) {
+  new Notice("⛔️ Mark Reviewed must be run on a concept note.", 10_000);
+  return;
+}
 
 // --- 1. PICK DIFFICULTY ---
 const difficultyLabels = [

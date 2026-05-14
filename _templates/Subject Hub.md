@@ -127,7 +127,7 @@ lines.push("## 🔔 Due for Review");
 lines.push("```dataview");
 lines.push(`TABLE next_review AS "Due", last_reviewed AS "Last Reviewed"`);
 lines.push(`FROM ${dvSource}`);
-lines.push(`WHERE course = this.course AND type = "${conceptType}" AND next_review <= date(today)`);
+lines.push(`WHERE course = this.course AND type = "${conceptType}" AND date(next_review) <= date(today)`);
 lines.push("SORT next_review ASC");
 lines.push("```");
 lines.push("");
