@@ -149,24 +149,21 @@ Skips concept multi-select. Two sections only. A `[!warning]` callout at the top
 
 **Style: 🧠 Ideas & Theory** (`status: draft`)
 
-Replaces the three passive sections (Summary, Definitions, Key Concepts) with generation-forcing equivalents. Keeps the two existing sections that already work (Explanation in My Own Words, Connections, Open Questions). Adds a `[!question]-` self-test callout written during processing.
+Structured around Q/E/C — the three-part argument structure that mirrors how theory and humanities lectures are actually delivered. Professors rarely state the main idea explicitly; the student must identify the central question, the evidence offered for it, and what conclusion the evidence supports. Adds a `[!question]-` self-test callout written during processing.
 
 ```markdown
 # 🧠 {topic}
 
-## 🎯 What This Was Actually About
-*One sentence. A claim, not a list.*
+## 🎯 Central Question
+*What was the lecture actually arguing? The professor's core question or thesis.*
 {cursor(1)}
 
-## 📝 Key Ideas — My Words
-*Paraphrase. If you're copying, stop.*
+## 📝 Evidence & Examples
+*Key evidence, examples, data. Paraphrase — stop if you're copying.*
 - 
 
-## 💡 Example I Generated
-*Not from slides — one you derived yourself.*
-```{codeLanguage}
-// {topic}
-```
+## 🧠 My Conclusion
+*In your own words: what does the evidence say? What position does it support?*
 
 > [!warning] Common Mistake
 > 
@@ -401,15 +398,7 @@ Sets `last_reviewed: today` and `next_review: calculated date` via `processFront
 
 ### 9. Utility templates (Link Concepts, Assign Tema, Update Note Status)
 
-No structural changes. All three work correctly. One addition across all templates including utilities: the Linter hook.
-
-```js
-tp.hooks.on_all_templates_executed(() => {
-  tp.app.commands.executeCommandById("obsidian-linter:lint-file");
-});
-```
-
-Added to `templateBootstrap.js` so it applies everywhere without touching individual templates. Auto-normalizes frontmatter key order after every template run. Linter is already installed in the vault.
+No structural changes. All three work correctly as-is.
 
 ---
 
@@ -434,12 +423,12 @@ schema: {
 | `tp.system.suggester` — style selection | Lecture Note, Concept Note, Quick Create Concept |
 | `tp.system.prompt(multiline: true)` | Parcial Prep Note — recall dump |
 | `tp.system.clipboard()` | Quick Create Concept — clipboard seeding |
-| `tp.app.commands.executeCommandById` | All templates via bootstrap (Linter hook) |
-| `tp.hooks.on_all_templates_executed` | All templates (existing pattern) |
+| `tp.hooks.on_all_templates_executed` | Quick Create Concept, Mark Reviewed (existing pattern) |
 | `[!question]-` collapsed callout | Lecture Note (Deep/STEM), Concept Note |
 | `[!warning]` callout | Lecture Note, Concept Note, Parcial Prep |
 | `[!abstract]` callout | Concept Note (Conceptual) |
-| Dataview `date()` arithmetic | Subject Hub, University Dashboard, Mark Reviewed |
+| Dataview `date()` arithmetic | Subject Hub, University Dashboard |
+| `tp.date.now` offset arithmetic | Concept Note Template, Quick Create Concept, Mark Reviewed |
 | Dataview task queries | Subject Hub, Parcial Prep, University Dashboard |
 | Dataviewjs aggregation | Subject Hub (health), University Dashboard (status by course) |
 
@@ -447,7 +436,7 @@ schema: {
 
 ## What Does Not Change
 
-- `templateBootstrap.js` — logic unchanged; Linter hook added as one line
+- `templateBootstrap.js` — logic unchanged
 - `universityNoteUtils.js` — untouched
 - `getUniversityContext.js` — untouched
 - `scriptLoader.js` — untouched
