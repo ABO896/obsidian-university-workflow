@@ -18,7 +18,7 @@ const lectureType = noteTypes.lecture ?? "lecture";
 const contextSubject = context?.subject ?? generalLabel;
 const contextYear = context?.year ?? tp.frontmatter?.year ?? null;
 
-// --- 2. RESOLVE PLACEMENT (shows year → subject → tema dialogs) ---
+// --- 1. RESOLVE PLACEMENT (shows year → subject → tema dialogs) ---
 const placement = await resolveSubjectParcialTema(tp, {
   currentFile,
   contextSubject,
@@ -47,7 +47,7 @@ if (!targetFolder) {
 
 await ensureFolderPath(targetFolder);
 
-// --- 3. PLACE FILE (before writing tR so the file is at its final path) ---
+// --- 2. PLACE FILE (before writing tR so the file is at its final path) ---
 const today = tp.date.now("YYYY-MM-DD");
 const extension = currentFile?.extension ?? "md";
 const finalFileName = ensureUniqueFileName(targetFolder, currentFile?.basename ?? "Untitled", extension);
@@ -59,7 +59,7 @@ if (needsMove) {
   await tp.file.move(destinationMovePath);
 }
 
-// --- 4. BUILD CONTENT ---
+// --- 3. BUILD CONTENT ---
 const frontmatterLines = [
   "---",
   `type: ${conceptType}`,

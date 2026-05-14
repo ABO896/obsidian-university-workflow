@@ -1,4 +1,6 @@
 <%*
+// Depends on: _templater_scripts/templateBootstrap.js
+
 // --- 0. BOOTSTRAP ---
 const ctx = await tp.user.templateBootstrap(tp, { requireNewFile: true });
 if (!ctx) return;
@@ -19,7 +21,7 @@ const codeLanguage = constants?.codeLanguage ?? "";
 const contextSubject = context?.subject ?? generalLabel;
 const contextYear = context?.year ?? tp.frontmatter?.year ?? null;
 
-// --- 2. RESOLVE PLACEMENT (shows year → subject → tema dialogs) ---
+// --- 1. RESOLVE PLACEMENT (shows year → subject → tema dialogs) ---
 const placement = await resolveSubjectParcialTema(tp, {
   currentFile,
   contextSubject,
@@ -47,7 +49,7 @@ if (!targetFolder) {
 
 await ensureFolderPath(targetFolder);
 
-// --- 3. PROMPT FOR TOPIC ---
+// --- 2. PROMPT FOR TOPIC ---
 // Pre-fill with any text the user had selected before running the template.
 const selectionDefault = tp.file.selection?.() ?? "";
 const topicInput = await tp.system.prompt(
@@ -67,7 +69,7 @@ const destinationFilePath = `${targetFolder}/${finalFileName}.${extension}`;
 const destinationMovePath = `${targetFolder}/${finalFileName}`;
 const needsMove = currentFile?.path !== destinationFilePath;
 
-// --- 4. MULTI-SELECT CONCEPTS (tp.system.multi_suggester — Templater ≥ 2.16) ---
+// --- 3. MULTI-SELECT CONCEPTS (tp.system.multi_suggester — Templater ≥ 2.16) ---
 // Discover concept notes already filed under the same course and offer
 // a multi-select so the student can tag which concepts this lecture covers.
 // Falls back gracefully when multi_suggester isn't available (older installs).
@@ -97,7 +99,7 @@ if (typeof tp.system.multi_suggester === "function") {
   }
 }
 
-// --- 5. BUILD CONTENT ---
+// --- 4. BUILD CONTENT ---
 const subjectSlug = toSlug(subject);
 const temaSlug = toSlug(tema);
 const lectureTags =
@@ -148,7 +150,7 @@ content += `## 🧠 Questions I Still Have\n- [ ] ${tp.file.cursor(3)}\n`;
 
 tR = content;
 
-// --- 6. PLACE FILE ---
+// --- 5. PLACE FILE ---
 if (needsMove) {
   await tp.file.move(destinationMovePath);
 }
