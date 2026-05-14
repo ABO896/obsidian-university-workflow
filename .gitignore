@@ -17,6 +17,8 @@
 !CLAUDE.md
 !docs/
 !docs/**
+!.planning/
+!.planning/**
 
 # Ignore macOS system files
 **/.DS_Store
