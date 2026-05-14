@@ -15,6 +15,7 @@
 !.claude/
 !.claude/**
 !CLAUDE.md
+!AUDIT.md
 !docs/
 !docs/**
 !.planning/
