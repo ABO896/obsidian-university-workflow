@@ -1,62 +1,23 @@
 <%*
-// Depends on: _templater_scripts/getUniversityContext.js, _templater_scripts/universityNoteUtils.js, _templater_scripts/universityConfig.js
+// Depends on: _templater_scripts/templateBootstrap.js
 //
 // When features.parcial = true  → full parcial selection flow; note placed in
 //                                  Parciales/<Parcial N>/
 // When features.parcial = false → parcial step is skipped; becomes a generic
 //                                  subject-scoped Study Guide at the subject root
 
-// --- 0. GUARD: must run on a fresh note ---
-const currentFile = tp.config.target_file;
-if (!currentFile) {
-  new Notice("⛔️ Abort: Templater has no target file.", 10_000);
-  return;
-}
-
-const isCreatingNewFile = tp.config.run_mode === 0;
-if (!isCreatingNewFile) {
-  const basename = (currentFile.basename ?? "").toLowerCase();
-  if (!basename.startsWith("untitled") && !basename.startsWith("sin título")) {
-    new Notice("⛔️ Abort: Template must be run in a new 'Untitled' note.", 10_000);
-    return;
-  }
-}
-
-// --- 1. LOAD UTILITIES ---
-const getConfig = tp.user.universityConfig;
-const config = typeof getConfig === "function" ? await getConfig() : null;
-const configLabels = config?.labels ?? {};
-
-const context = await tp.user.getUniversityContext(currentFile);
-
-const noteUtils = await tp.user.universityNoteUtils();
+// --- 0. BOOTSTRAP ---
+const ctx = await tp.user.templateBootstrap(tp, { requireNewFile: true });
+if (!ctx) return;
+const { currentFile, noteUtils, generalLabel, schema, constants, context } = ctx;
 const {
   ensureFolderPath,
   ensureUniqueFileName,
   sanitizeFileName,
   toSlug,
-  resolveSubjectAndParcial,
-  constants = {},
-  schema = {},
-} = noteUtils ?? {};
+  resolvePlacement,
+} = noteUtils;
 
-if (!noteUtils) {
-  new Notice("⛔️ Abort: University note utilities are unavailable.", 10_000);
-  return;
-}
-
-if (!resolveSubjectAndParcial) {
-  new Notice("⛔️ Abort: Placement helper is unavailable.", 10_000);
-  return;
-}
-
-const generalLabel = constants?.general ?? configLabels.general;
-if (!generalLabel) {
-  new Notice("⛔️ Abort: University general label is not configured.", 10_000);
-  return;
-}
-
-// Read the feature flag from constants (mirrors config.features.parcial).
 const isParcialEnabled = constants?.isParcialEnabled === true;
 
 const noteTypes = schema?.types ?? {};
@@ -68,11 +29,11 @@ const contextSubject = context?.subject ?? generalLabel;
 const contextYear = context?.year ?? tp.frontmatter?.year ?? null;
 const contextParcial = context?.parcial ?? generalLabel;
 
-// --- 2. RESOLVE PLACEMENT ---
+// --- 1. RESOLVE PLACEMENT ---
 // When parcial is enabled: year → subject → parcial dialogs; note goes into
 //   Parciales/<Parcial N>/.
 // When parcial is disabled: year → subject only; note goes to subject root.
-const placement = await resolveSubjectAndParcial(tp, {
+const placement = await resolvePlacement(tp, {
   currentFile,
   contextSubject,
   contextYear,
@@ -110,7 +71,7 @@ if (!effectiveFolder) {
 
 await ensureFolderPath(effectiveFolder);
 
-// --- 3. BUILD FILE NAME ---
+// --- 2. BUILD FILE NAME ---
 const today = tp.date.now("YYYY-MM-DD");
 const parcialSuffix =
   isParcialEnabled && parcial !== generalLabel ? ` - ${parcial}` : "";
@@ -122,7 +83,7 @@ const destinationFilePath = `${effectiveFolder}/${finalFileName}.${extension}`;
 const destinationMovePath = `${effectiveFolder}/${finalFileName}`;
 const needsMove = currentFile?.path !== destinationFilePath;
 
-// --- 4. BUILD CONTENT ---
+// --- 3. BUILD CONTENT ---
 const parcialFmLine =
   isParcialEnabled && parcial !== generalLabel
     ? `parcial: ${JSON.stringify(parcial)}`
@@ -211,7 +172,7 @@ lines.push("");
 
 tR = lines.join("\n");
 
-// --- 5. PLACE FILE ---
+// --- 4. PLACE FILE ---
 if (needsMove) {
   await tp.file.move(destinationMovePath);
 }
