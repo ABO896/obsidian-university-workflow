@@ -485,7 +485,7 @@ function universityNoteUtils() {
     return sortCaseInsensitive(dedupePreserveOrder(yearValues));
   }
 
-  async function resolveSubjectAndParcial(
+  async function resolvePlacement(
     tp,
     {
       currentFile,
@@ -663,7 +663,7 @@ function universityNoteUtils() {
       ...rest
     } = {}
   ) {
-    const placement = await resolveSubjectAndParcial(tp, {
+    const placement = await resolvePlacement(tp, {
       ...rest,
       includeParcial,
     });
@@ -756,6 +756,54 @@ function universityNoteUtils() {
     };
   }
 
+  // Generates the dataviewjs backlinks block for a concept note. Both templates
+  // that create concept notes call this so the query stays in one place.
+  function buildConceptBacklinksBlock({ baseUniversityPath, generalLabel: label, lectureType: lType }) {
+    const dvSource = JSON.stringify(baseUniversityPath ?? "");
+    const generalLiteral = JSON.stringify(label ?? "");
+    const lectureTypeLiteral = JSON.stringify(lType ?? "");
+
+    return [
+      "```dataviewjs",
+      `const concept = dv.current();`,
+      `const targetCourse = concept.course ?? ${generalLiteral};`,
+      `const targetName = (concept.file?.name ?? "").toLowerCase();`,
+      `const targetPath = concept.file?.path ?? "";`,
+      ``,
+      `const allowedTypes = new Set([${lectureTypeLiteral}]);`,
+      `const sortValue = (page) => page.created ?? page.date ?? page.file?.ctime;`,
+      ``,
+      `const matches = dv`,
+      `  .pages(${dvSource})`,
+      `  .where((page) => (page.course ?? ${generalLiteral}) === targetCourse)`,
+      `  .where((page) => allowedTypes.has((page.type ?? "").toLowerCase()))`,
+      `  .where((page) => {`,
+      `    const concepts = Array.isArray(page.concepts) ? page.concepts : [];`,
+      `    const conceptMatch = concepts.some((entry) => {`,
+      `      if (!entry) {`,
+      `        return false;`,
+      `      }`,
+      ``,
+      `      const entryValue = entry.path ?? entry.toString?.() ?? entry;`,
+      `      if (!entryValue) {`,
+      `        return false;`,
+      `      }`,
+      ``,
+      `      const lowered = entryValue.toString().toLowerCase();`,
+      `      return lowered === targetName || lowered === targetPath.toLowerCase();`,
+      `    });`,
+      ``,
+      `    const linkMatch = (page.file?.outlinks ?? []).some((link) => link.path === targetPath);`,
+      `    return conceptMatch || linkMatch;`,
+      `  })`,
+      `  .array()`,
+      `  .sort((a, b) => dv.compare(sortValue(a), sortValue(b)));`,
+      ``,
+      `dv.list(matches.map((page) => page.file.link));`,
+      "```",
+    ].join("\n");
+  }
+
   const codeLanguage = typeof config.codeLanguage === "string" ? config.codeLanguage : "";
 
   const constants = {
@@ -800,8 +848,10 @@ function universityNoteUtils() {
     reorderWithPreference,
     reorderOptions: reorderWithPreference,
     buildSubjectOptions,
-    resolveSubjectAndParcial,
+    resolvePlacement,
+    resolveSubjectAndParcial: resolvePlacement,
     resolveSubjectParcialTema,
+    buildConceptBacklinksBlock,
   };
 }
 

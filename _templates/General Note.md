@@ -1,46 +1,17 @@
 <%*
-// Depends on: _templater_scripts/getUniversityContext.js, _templater_scripts/universityNoteUtils.js, _templater_scripts/universityConfig.js
+// Depends on: _templater_scripts/templateBootstrap.js
 
-// --- 0. GUARD: verify target file exists ---
-const currentFile = tp.config.target_file;
-if (!currentFile) {
-  new Notice("⛔️ Abort: Templater has no target file.", 10_000);
-  return;
-}
-
-// --- 1. LOAD UTILITIES ---
-const getConfig = tp.user.universityConfig;
-const config = typeof getConfig === "function" ? await getConfig() : null;
-const configLabels = config?.labels ?? {};
-
-const context = await tp.user.getUniversityContext(currentFile);
-
-const noteUtils = await tp.user.universityNoteUtils();
+// --- 0. BOOTSTRAP ---
+const ctx = await tp.user.templateBootstrap(tp);
+if (!ctx) return;
+const { currentFile, noteUtils, generalLabel, schema, context } = ctx;
 const {
   ensureFolderPath,
   ensureUniqueFileName,
   sanitizeFileName,
   toSlug,
   resolveSubjectParcialTema,
-  constants = {},
-  schema = {},
-} = noteUtils ?? {};
-
-if (!noteUtils) {
-  new Notice("⛔️ Abort: University note utilities are unavailable.", 10_000);
-  return;
-}
-
-if (!resolveSubjectParcialTema) {
-  new Notice("⛔️ Abort: Placement helper is unavailable.", 10_000);
-  return;
-}
-
-const generalLabel = constants?.general ?? configLabels.general;
-if (!generalLabel) {
-  new Notice("⛔️ Abort: University general label is not configured.", 10_000);
-  return;
-}
+} = noteUtils;
 
 const noteTypes = schema?.types ?? {};
 const generalType = noteTypes.general ?? "general";
@@ -48,7 +19,7 @@ const generalType = noteTypes.general ?? "general";
 const generalNoteTitleLabel = `${generalLabel} Note`;
 const generalNoteNoticeLabel = `${generalLabel} note`;
 
-// --- 2. GUARD: confirm before running on an existing (non-Untitled) file ---
+// --- 1. GUARD: confirm before running on an existing (non-Untitled) file ---
 const basename = (currentFile.basename ?? "").toLowerCase();
 const isUntitled = basename.startsWith("untitled") || basename.startsWith("sin título");
 
@@ -66,7 +37,7 @@ if (!isUntitled) {
   }
 }
 
-// --- 3. RESOLVE PLACEMENT (shows year → subject → tema dialogs) ---
+// --- 2. RESOLVE PLACEMENT (shows year → subject → tema dialogs) ---
 const contextSubject = context?.subject ?? generalLabel;
 const contextYear = context?.year ?? tp.frontmatter?.year ?? null;
 
@@ -97,7 +68,7 @@ if (!targetFolder) {
 
 await ensureFolderPath(targetFolder);
 
-// --- 4. PROMPT FOR TITLE ---
+// --- 3. PROMPT FOR TITLE ---
 const titleInput = await tp.system.prompt(
   "Note title",
   currentFile?.basename ?? generalNoteTitleLabel
@@ -119,7 +90,7 @@ const destinationFilePath = `${targetFolder}/${finalFileName}.${extension}`;
 const destinationMovePath = `${targetFolder}/${finalFileName}`;
 const needsMove = currentFile?.path !== destinationFilePath;
 
-// --- 5. BUILD CONTENT ---
+// --- 4. BUILD CONTENT ---
 const today = tp.date.now("YYYY-MM-DD");
 const subjectSlug = toSlug(selectedSubject);
 const temaSlug = toSlug(selectedTema);
@@ -157,7 +128,7 @@ if (inlineTags) {
 
 tR += tp.file.cursor();
 
-// --- 6. PLACE FILE ---
+// --- 5. PLACE FILE ---
 if (needsMove) {
   await tp.file.move(destinationMovePath);
 }
