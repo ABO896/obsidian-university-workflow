@@ -1,43 +1,15 @@
 <%*
-// Depends on: _templater_scripts/getUniversityContext.js, _templater_scripts/universityNoteUtils.js, _templater_scripts/universityConfig.js
+// Depends on: _templater_scripts/templateBootstrap.js
 
-// --- 0. GUARD: verify target file exists ---
-const currentFile = tp.config.target_file;
-if (!currentFile) {
-  new Notice("⛔️ Abort: Templater has no target file.", 10_000);
-  return;
-}
-
-// --- 1. LOAD UTILITIES ---
-const context = await tp.user.getUniversityContext(currentFile);
-const getConfig = tp.user.universityConfig;
-const config = typeof getConfig === "function" ? await getConfig() : null;
-const configLabels = config?.labels ?? {};
-
-const noteUtils = await tp.user.universityNoteUtils();
+// --- 0. BOOTSTRAP ---
+const ctx = await tp.user.templateBootstrap(tp);
+if (!ctx) return;
+const { currentFile, noteUtils, generalLabel, schema, constants, context } = ctx;
 const {
   ensureFolderPath,
   ensureUniqueFileName,
   resolveSubjectParcialTema,
-  constants = {},
-  schema = {},
-} = noteUtils ?? {};
-
-if (!noteUtils) {
-  new Notice("⛔️ Abort: University note utilities are unavailable.", 10_000);
-  return;
-}
-
-if (!resolveSubjectParcialTema) {
-  new Notice("⛔️ Abort: Placement helper is unavailable.", 10_000);
-  return;
-}
-
-const generalLabel = constants?.general ?? configLabels.general;
-if (!generalLabel) {
-  new Notice("⛔️ Abort: University general label is not configured.", 10_000);
-  return;
-}
+} = noteUtils;
 
 const noteTypes = schema?.types ?? {};
 const conceptType = noteTypes.concept ?? "concept";
@@ -88,11 +60,6 @@ if (needsMove) {
 }
 
 // --- 4. BUILD CONTENT ---
-// Dataview source scoped to the university root for performance.
-const dvSource = JSON.stringify(baseUniversityPath ?? "");
-const generalLiteral = JSON.stringify(generalLabel);
-const lectureTypeLiteral = JSON.stringify(lectureType);
-
 const frontmatterLines = [
   "---",
   `type: ${conceptType}`,
@@ -108,47 +75,11 @@ const frontmatterLines = [
   .filter(Boolean)
   .join("\n");
 
-// Dataview JS that finds all lectures/notes referencing this concept by name
-// or via an explicit entry in their `concepts` frontmatter array.
-const dataviewBlock = [
-  "```dataviewjs",
-  `const concept = dv.current();`,
-  `const targetCourse = concept.course ?? ${generalLiteral};`,
-  `const targetName = (concept.file?.name ?? "").toLowerCase();`,
-  `const targetPath = concept.file?.path ?? "";`,
-  ``,
-  `const allowedTypes = new Set([${lectureTypeLiteral}]);`,
-  `const sortValue = (page) => page.created ?? page.date ?? page.file?.ctime;`,
-  ``,
-  `const matches = dv`,
-  `  .pages(${dvSource})`,
-  `  .where((page) => (page.course ?? ${generalLiteral}) === targetCourse)`,
-  `  .where((page) => allowedTypes.has((page.type ?? "").toLowerCase()))`,
-  `  .where((page) => {`,
-  `    const concepts = Array.isArray(page.concepts) ? page.concepts : [];`,
-  `    const conceptMatch = concepts.some((entry) => {`,
-  `      if (!entry) {`,
-  `        return false;`,
-  `      }`,
-  ``,
-  `      const entryValue = entry.path ?? entry.toString?.() ?? entry;`,
-  `      if (!entryValue) {`,
-  `        return false;`,
-  `      }`,
-  ``,
-  `      const lowered = entryValue.toString().toLowerCase();`,
-  `      return lowered === targetName || lowered === targetPath.toLowerCase();`,
-  `    });`,
-  ``,
-  `    const linkMatch = (page.file?.outlinks ?? []).some((link) => link.path === targetPath);`,
-  `    return conceptMatch || linkMatch;`,
-  `  })`,
-  `  .array()`,
-  `  .sort((a, b) => dv.compare(sortValue(a), sortValue(b)));`,
-  ``,
-  `dv.list(matches.map((page) => page.file.link));`,
-  "```",
-].join("\n");
+const dataviewBlock = noteUtils.buildConceptBacklinksBlock({
+  baseUniversityPath,
+  generalLabel,
+  lectureType,
+});
 
 const lines = [
   frontmatterLines,
