@@ -1,58 +1,15 @@
 <%*
-// Depends on: _templater_scripts/getUniversityContext.js, _templater_scripts/universityNoteUtils.js, _templater_scripts/universityConfig.js
-
-// --- 0. GUARD: must run on a fresh note ---
-// RunMode 0 (CreateNewFile) guarantees a brand-new file; skip the basename
-// check in that case.  For all other modes (hotkey on existing file, etc.)
-// we require the standard "Untitled" starting point.
-const currentFile = tp.config.target_file;
-if (!currentFile) {
-  new Notice("⛔️ Abort: Templater has no target file.", 10_000);
-  return;
-}
-
-const isCreatingNewFile = tp.config.run_mode === 0;
-if (!isCreatingNewFile) {
-  const basename = currentFile.basename.toLowerCase();
-  if (!basename.startsWith("untitled") && !basename.startsWith("sin título")) {
-    new Notice("⛔️ Abort: Template must be run in a new 'Untitled' note.", 10_000);
-    return;
-  }
-}
-
-// --- 1. LOAD UTILITIES ---
-const getConfig = tp.user.universityConfig;
-const config = typeof getConfig === "function" ? await getConfig() : null;
-const configLabels = config?.labels ?? {};
-
-const context = await tp.user.getUniversityContext(currentFile);
-
-const noteUtils = await tp.user.universityNoteUtils();
+// --- 0. BOOTSTRAP ---
+const ctx = await tp.user.templateBootstrap(tp, { requireNewFile: true });
+if (!ctx) return;
+const { currentFile, noteUtils, generalLabel, schema, constants, context } = ctx;
 const {
   ensureFolderPath,
   ensureUniqueFileName,
   sanitizeFileName,
   toSlug,
   resolveSubjectParcialTema,
-  constants = {},
-  schema = {},
-} = noteUtils ?? {};
-
-if (!noteUtils) {
-  new Notice("⛔️ Abort: University note utilities are unavailable.", 10_000);
-  return;
-}
-
-if (!resolveSubjectParcialTema) {
-  new Notice("⛔️ Abort: Placement helper is unavailable.", 10_000);
-  return;
-}
-
-const generalLabel = constants?.general ?? configLabels.general;
-if (!generalLabel) {
-  new Notice("⛔️ Abort: University general label is not configured.", 10_000);
-  return;
-}
+} = noteUtils;
 
 const noteTypes = schema?.types ?? {};
 const lectureType = noteTypes.lecture ?? "lecture";
