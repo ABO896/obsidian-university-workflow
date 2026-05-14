@@ -464,3 +464,51 @@ describe('scriptLoader', () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// buildConceptBacklinksBlock
+// ---------------------------------------------------------------------------
+describe('buildConceptBacklinksBlock', () => {
+  const { buildConceptBacklinksBlock } = utils;
+
+  const defaults = {
+    baseUniversityPath: 'Universidad',
+    generalLabel: 'General',
+    lectureType: 'lecture',
+  };
+
+  test('returns a string', () => {
+    assert.equal(typeof buildConceptBacklinksBlock(defaults), 'string');
+  });
+
+  test('opens with ```dataviewjs fence', () => {
+    const result = buildConceptBacklinksBlock(defaults);
+    assert.ok(result.startsWith('```dataviewjs'), `expected to start with \`\`\`dataviewjs, got: ${result.slice(0, 30)}`);
+  });
+
+  test('closes with ``` fence', () => {
+    const result = buildConceptBacklinksBlock(defaults);
+    assert.ok(result.trimEnd().endsWith('```'), 'expected to end with ```');
+  });
+
+  test('includes JSON-stringified baseUniversityPath as dvSource', () => {
+    const result = buildConceptBacklinksBlock(defaults);
+    assert.ok(result.includes('"Universidad"'), 'should include JSON-stringified path');
+  });
+
+  test('includes JSON-stringified generalLabel', () => {
+    const result = buildConceptBacklinksBlock(defaults);
+    assert.ok(result.includes('"General"'), 'should include JSON-stringified generalLabel');
+  });
+
+  test('includes JSON-stringified lectureType', () => {
+    const result = buildConceptBacklinksBlock(defaults);
+    assert.ok(result.includes('"lecture"'), 'should include JSON-stringified lectureType');
+  });
+
+  test('uses multi-line if bodies — no collapsed "if (!entry) return false;"', () => {
+    const result = buildConceptBacklinksBlock(defaults);
+    assert.ok(!result.includes('if (!entry) return false;'), 'single-line if found');
+    assert.ok(!result.includes('if (!entryValue) return false;'), 'single-line if found');
+  });
+});
