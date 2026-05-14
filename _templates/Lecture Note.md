@@ -50,12 +50,8 @@ if (!targetFolder) {
 await ensureFolderPath(targetFolder);
 
 // --- 2. PROMPT FOR TOPIC ---
-// Pre-fill with any text the user had selected before running the template.
 const selectionDefault = tp.file.selection?.() ?? "";
-const topicInput = await tp.system.prompt(
-  "Lecture Topic (optional)",
-  selectionDefault || null
-);
+const topicInput = await tp.system.prompt("Lecture Topic (optional)", selectionDefault || null);
 const rawTopic = topicInput?.trim();
 const safeTopic = sanitizeFileName(rawTopic) || "Untitled Topic";
 
@@ -69,12 +65,26 @@ const destinationFilePath = `${targetFolder}/${finalFileName}.${extension}`;
 const destinationMovePath = `${targetFolder}/${finalFileName}`;
 const needsMove = currentFile?.path !== destinationFilePath;
 
-// --- 3. MULTI-SELECT CONCEPTS (tp.system.multi_suggester — Templater ≥ 2.16) ---
-// Discover concept notes already filed under the same course and offer
-// a multi-select so the student can tag which concepts this lecture covers.
-// Falls back gracefully when multi_suggester isn't available (older installs).
+// --- 3. PICK STYLE ---
+// Quick  = encoding only; process within 24h.
+// Theory = humanities / argument-driven lectures; Q/E/C structure.
+// STEM   = code, math, algorithms; problem-type + steps + worked example.
+const styleOptions = [
+  "⚡ Quick — capture now, process later",
+  "🧠 Ideas & Theory — arguments, evidence, conclusions",
+  "💻 Code & Math — steps, algorithms, worked examples",
+];
+const styleKeys = ["quick", "theory", "stem"];
+const selectedStyle = await tp.system.suggester(styleOptions, styleKeys, false, "Lecture style");
+if (!selectedStyle) {
+  new Notice("ℹ️ Lecture note creation cancelled.", 5_000);
+  return;
+}
+
+// --- 4. MULTI-SELECT CONCEPTS (Ideas & Theory + Code & Math only) ---
+// Quick notes skip this — concept wiring happens after the note is upgraded.
 let conceptLinks = [];
-if (typeof tp.system.multi_suggester === "function") {
+if (selectedStyle !== "quick" && typeof tp.system.multi_suggester === "function") {
   const allFiles = tp.app.vault.getMarkdownFiles?.() ?? [];
   const conceptFiles = allFiles
     .filter((f) => {
@@ -99,19 +109,19 @@ if (typeof tp.system.multi_suggester === "function") {
   }
 }
 
-// --- 4. BUILD CONTENT ---
+// --- 5. BUILD FRONTMATTER ---
+// Quick captures are raw by design; they must be processed within 24h.
+const status = selectedStyle === "quick" ? "raw" : "draft";
 const subjectSlug = toSlug(subject);
 const temaSlug = toSlug(tema);
-const lectureTags =
-  [
-    subjectSlug && `#${subjectSlug}`,
-    temaSlug && temaSlug !== subjectSlug ? `#${temaSlug}` : null,
-    "#lecture",
-  ]
-    .filter(Boolean)
-    .join(" ");
+const lectureTags = [
+  subjectSlug && `#${subjectSlug}`,
+  temaSlug && temaSlug !== subjectSlug ? `#${temaSlug}` : null,
+  "#lecture",
+]
+  .filter(Boolean)
+  .join(" ");
 const alias = JSON.stringify(headingTitle);
-const created = today;
 const conceptsLine =
   conceptLinks.length > 0 ? `concepts: [${conceptLinks.join(", ")}]` : "concepts: []";
 
@@ -121,8 +131,8 @@ const frontMatter = [
   `course: ${JSON.stringify(subject)}`,
   year ? `year: ${JSON.stringify(year)}` : null,
   `tema: ${JSON.stringify(tema)}`,
-  `created: ${JSON.stringify(created)}`,
-  "status: draft",
+  `created: ${JSON.stringify(today)}`,
+  `status: ${status}`,
   `aliases: [${alias}]`,
   conceptsLine,
   "---",
@@ -130,27 +140,78 @@ const frontMatter = [
   .filter(Boolean)
   .join("\n");
 
-// Multiple cursors allow Tab-key navigation between the most-edited sections:
-//   cursor(1) → first Summary takeaway  (filled during/right after the lecture)
-//   cursor(2) → first Definition entry  (terminology captured live)
-//   cursor(3) → Questions section       (open questions noted at the end)
-let content = `${frontMatter}\n`;
-content += lectureTags ? `${lectureTags}\n\n` : "";
-content += `# 🧠 ${headingTitle}\n\n`;
-content += `## 📜 Summary\n- [ ] ${tp.file.cursor(1)}\n- [ ] Key takeaway 2\n\n`;
-content += `## 📚 Definitions\n- [ ] ${tp.file.cursor(2)} :: Definition\n\n`;
-content += "## 🧩 Key Concepts\n- [ ] Concept :: Insight\n\n";
-content += "## 💡 Examples or Code\n";
-content += `\`\`\`${codeLanguage}\n`;
-content += `// ${safeTopic}\n`;
-content += "```\n\n";
-content += "## 🧭 Explanation in My Own Words\n- [ ] Insight\n\n";
-content += "## 🔗 Connections\n- [ ] Related topic\n\n";
-content += `## 🧠 Questions I Still Have\n- [ ] ${tp.file.cursor(3)}\n`;
+// --- 6. BUILD STYLE-SPECIFIC CONTENT ---
+let body = `${frontMatter}\n`;
+if (lectureTags) body += `${lectureTags}\n\n`;
 
-tR = content;
+if (selectedStyle === "quick") {
+  // Encoding-only mode. The warning callout is the reminder to process within 24h.
+  body += `> [!warning] Encoding Only\n`;
+  body += `> Convert within 24h — run *Link Concepts*, then upgrade to Ideas & Theory or Code & Math.\n\n`;
+  body += `# ⚡ ${headingTitle}\n\n`;
+  body += `${tp.file.cursor(1)}\n\n`;
+  body += `## ❓ Questions\n`;
+  body += `- ${tp.file.cursor(2)}\n`;
 
-// --- 5. PLACE FILE ---
+} else if (selectedStyle === "theory") {
+  // Q/E/C structure for argument-driven (humanities / social science) lectures.
+  // Professors rarely state the main idea explicitly — this structure forces the
+  // student to identify the question, evidence, and conclusion themselves.
+  body += `# 🧠 ${headingTitle}\n\n`;
+  body += `## 🎯 Central Question\n`;
+  body += `*What was the lecture actually arguing? The professor's core question or thesis.*\n`;
+  body += `${tp.file.cursor(1)}\n\n`;
+  body += `## 📝 Evidence & Examples\n`;
+  body += `*Key evidence, examples, data. Paraphrase — stop if you're copying.*\n`;
+  body += `- \n\n`;
+  body += `## 🧠 My Conclusion\n`;
+  body += `*In your own words: what does the evidence say? What position does it support?*\n\n`;
+  body += `> [!warning] Common Mistake\n`;
+  body += `> \n\n`;
+  body += `> [!question]- Self-test\n`;
+  body += `> ${tp.file.cursor(2)}\n`;
+  body += `>\n`;
+  body += `> **Answer:**\n\n`;
+  body += `## 🔗 Connections\n`;
+  body += `- \n\n`;
+  body += `## ❓ Open Questions\n`;
+  body += `- ${tp.file.cursor(3)}\n`;
+
+} else {
+  // Code & Math: problem-pattern + steps + worked example.
+  // STEM learning requires repeated problem-solving, not re-reading. Every section
+  // here forces production: articulate the pattern, write steps in own words,
+  // derive a worked example, surface edge cases.
+  body += `# 💻 ${headingTitle}\n\n`;
+  body += `## 🎯 Problem Type\n`;
+  body += `*When does this apply? What does the problem look like?*\n`;
+  body += `${tp.file.cursor(1)}\n\n`;
+  body += `## ⚙️ My Approach\n`;
+  body += `*Steps in your own words. Not copied.*\n`;
+  body += `1. \n\n`;
+  body += `## 💻 Example I Worked Out\n`;
+  body += `\`\`\`${codeLanguage}\n`;
+  body += `// ${safeTopic}\n`;
+  body += `\`\`\`\n\n`;
+  body += `> [!warning] Edge Cases\n`;
+  body += `> - \n\n`;
+  body += `> [!question]- Self-test\n`;
+  body += `> ${tp.file.cursor(2)}\n`;
+  body += `>\n`;
+  body += `> **Answer:**\n\n`;
+  body += `## 📊 Tradeoffs\n`;
+  body += `| | |\n`;
+  body += `|---|---|\n`;
+  body += `| Time | |\n`;
+  body += `| Space | |\n`;
+  body += `| Don't use when | |\n\n`;
+  body += `## 🔗 Connections\n`;
+  body += `- ${tp.file.cursor(3)}\n`;
+}
+
+tR = body;
+
+// --- 7. PLACE FILE ---
 if (needsMove) {
   await tp.file.move(destinationMovePath);
 }

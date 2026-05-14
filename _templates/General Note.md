@@ -126,7 +126,8 @@ if (inlineTags) {
   tR += `${inlineTags}\n\n`;
 }
 
-tR += tp.file.cursor();
+tR += `${tp.file.cursor()}\n\n`;
+tR += `## 🔗 Connections\n- \n`;
 
 // --- 5. PLACE FILE ---
 if (needsMove) {

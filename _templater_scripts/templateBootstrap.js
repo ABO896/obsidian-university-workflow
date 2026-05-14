@@ -49,6 +49,11 @@ async function templateBootstrap(tp, { requireNewFile = false } = {}) {
     return null;
   }
 
+  // Normalize frontmatter key order after every template run.
+  tp.hooks.on_all_templates_executed(() => {
+    tp.app.commands.executeCommandById("obsidian-linter:lint-file");
+  });
+
   return {
     currentFile,
     noteUtils,
