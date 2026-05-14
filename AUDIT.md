@@ -72,4 +72,27 @@ _Templates and scripts audited against three ethos principles: config-driven pur
 
 - **`_templates/Quick Create Concept.md` line 79:** `promptYearWhen: "missing"` is already set (correct), but year is still prompted when the current note lacks a year in frontmatter. This is expected behavior for `"missing"` — when year is truly absent, the prompt appears. Low impact; noted for completeness. → **Fix:** No immediate action required unless the intent is to inherit year from the path even when frontmatter is absent, in which case `promptYearWhen: "never"` would suppress all year prompts.
 
-<!-- Section 4: Expansion Opportunities — written in plan 02 -->
+## 4. Expansion Opportunities
+
+_Gaps where the system's stated purpose is not yet fully served. Ordered by apparent impact. Items marked (out of scope for this initiative) are captured for future consideration but not addressed in this audit cycle._
+
+1. **Concept Note Template missing requireNewFile guard** — `Concept Note Template.md` calls `templateBootstrap` without `{ requireNewFile: true }`, leaving the template able to silently overwrite an existing named note. This is also documented as a Critical violation in Section 2 — the expansion framing is that a one-line fix closes an entire data-loss risk class for all future users of the template. → Add `{ requireNewFile: true }` to the bootstrap call on line 5.
+
+2. **Update Note Status missing "raw" in fallback statuses** — The hardcoded fallback array `["draft", "reviewed", "complete"]` omits `"raw"`, making Quick Capture notes invisible to the batch-status utility when config fails to load. This is also documented as a Critical violation in Section 1 — the expansion framing is that fixing the fallback closes a silent-failure path that would affect every user who starts notes with `status: "raw"`. → Replace the literal array with `config?.schema?.statuses ?? ["raw", "draft", "reviewed", "complete"]`.
+
+3. **Subject Hub non-standard "updated" frontmatter key** — `Subject Hub.md` generates an `updated: YYYY-MM-DD` key in frontmatter that does not appear in CONVENTIONS.md's required key order (`type → course → year → tema → created → status → aliases`). Every Subject Hub note created since the template's introduction carries a key that is either an undocumented extension or an unintentional addition. → Either add `updated` to CONVENTIONS.md with a documented purpose (e.g., "last regenerated date") and a standardized position, or remove it from the template.
+
+4. **Shared reviewIntervals fallback constant** — `Concept Note Template.md` and `Quick Create Concept.md` each hardcode the same fallback object `{ easy: 14, medium: 7, hard: 3, blank: 1 }`. If the config interval values change, both fallbacks become stale independently. → Add `schema.reviewIntervals` as a validated key in the bootstrap layer, or have both templates fall back to a single shared constant defined in `universityConfig.js` and exposed via `constants`.
+
+5. **No template for creating a new Subject (folder + hub in one step)** — Users must currently run `Subject Hub` template, select a non-existent subject name, and manually type the new folder label. A dedicated New Subject template could create the subject folder, generate the hub note, and open it in a single action — matching the zero-friction principle for the most common setup operation. (out of scope for this initiative)
+
+6. **No Study Session or daily-capture template** — The system covers lecture notes, concept notes, and exam prep, but provides no lightweight "I studied today" journal entry that cross-links to concepts reviewed. `Mark Reviewed` handles the spaced-repetition side, but there is no narrative capture for a study session as a whole. A study session template would complete the daily workflow loop. (out of scope for this initiative)
+
+7. **getUniversityContext.js lazy-init state persists for vault lifetime** — The module-level `_initialized` flag means config changes (such as adding a new academic year) require a full Obsidian vault reload to take effect. ARCHITECTURE.md documents this as a known constraint, but a "Reset context cache" utility template that calls a `reset()` export on `getUniversityContext.js` would allow mid-session config edits without a reload. (out of scope for this initiative)
+
+8. **Mobile usage blockers not surfaced in templates** — `tp.user.*` scripts are unavailable on Obsidian mobile, causing all templates that call `tp.user.templateBootstrap` to fail silently. No template currently displays a user-facing notice when run on mobile. A `mobile` feature flag in `universityConfig.js` combined with a bootstrap-level guard could surface a clear error message instead of a confusing silent failure. (out of scope for this initiative)
+
+9. **Redundant fallback on reviewIntervals.medium in date offset** — `Quick Create Concept.md` and `Concept Note Template.md` both use `tp.date.now("YYYY-MM-DD", reviewIntervals.medium ?? 7)`. The `?? 7` guard is redundant when `config.schema.reviewIntervals` is always present after a successful bootstrap. If expansion opportunity E-02 (shared constant) or E-04 (removing the literal fallback object) is implemented, this double-fallback can be cleaned up as part of the same change. Very low impact.
+
+---
+_Audit generated: 2026-05-15 | 16 files reviewed | 2 critical violations | 19 minor violations | 9 expansion opportunities_
