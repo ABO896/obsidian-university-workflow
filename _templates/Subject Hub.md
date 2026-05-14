@@ -1,59 +1,19 @@
 <%*
-// Depends on: _templater_scripts/getUniversityContext.js, _templater_scripts/universityNoteUtils.js, _templater_scripts/universityConfig.js
+// Depends on: _templater_scripts/templateBootstrap.js
 
-// --- 0. GUARD: must run on a fresh note ---
-// RunMode 0 (CreateNewFile) guarantees a brand-new file from Templater itself.
-const currentFile = tp.config.target_file;
-if (!currentFile) {
-  new Notice("⛔️ Abort: Templater has no target file.", 10_000);
-  return;
-}
-
-const isCreatingNewFile = tp.config.run_mode === 0;
-if (!isCreatingNewFile) {
-  const basename = (currentFile.basename ?? "").toLowerCase();
-  if (!basename.startsWith("untitled") && !basename.startsWith("sin título")) {
-    new Notice("⛔️ Abort: Template must be run in a new 'Untitled' note.", 10_000);
-    return;
-  }
-}
-
-// --- 1. LOAD UTILITIES ---
-const context = await tp.user.getUniversityContext(currentFile);
-const getConfig = tp.user.universityConfig;
-const config = typeof getConfig === "function" ? await getConfig() : null;
-const configLabels = config?.labels ?? {};
-const configFs = config?.fs ?? {};
-
-const noteUtils = await tp.user.universityNoteUtils();
-
-if (!noteUtils) {
-  new Notice("⛔️ Abort: University note utilities are unavailable.", 10_000);
-  return;
-}
-
+// --- 0. BOOTSTRAP ---
+const ctx = await tp.user.templateBootstrap(tp, { requireNewFile: true });
+if (!ctx) return;
+const { currentFile, noteUtils, generalLabel, schema, constants, context, config, configLabels } = ctx;
 const {
   sanitizeFileName,
   ensureUniqueFileName,
   ensureFolderPath,
-  resolveSubjectAndParcial,
+  resolvePlacement,
   toSlug,
   labels: helperLabels,
-  constants = {},
   fsConfig: helperFsConfig,
-  schema = {},
-} = noteUtils ?? {};
-
-if (!resolveSubjectAndParcial) {
-  new Notice("⛔️ Abort: Placement helper is unavailable.", 10_000);
-  return;
-}
-
-const generalLabel = constants?.general ?? configLabels.general;
-if (!generalLabel) {
-  new Notice("⛔️ Abort: University general label is not configured.", 10_000);
-  return;
-}
+} = noteUtils;
 
 const noteTypes = schema?.types ?? {};
 const lectureType = noteTypes.lecture ?? "lecture";
@@ -61,6 +21,7 @@ const conceptType = noteTypes.concept ?? "concept";
 const generalType = noteTypes.general ?? "general";
 const hubType = noteTypes["subject-hub"] ?? "subject-hub";
 
+const configFs = config?.fs ?? {};
 const labels = helperLabels ?? configLabels;
 const fsConfig = helperFsConfig ?? configFs;
 const yearLabel = labels?.year ?? "Year";
@@ -83,8 +44,8 @@ const noTemasMessage = `No ${temaPluralLower} recorded yet.`;
 
 const contextSubject = context?.subject ?? generalLabel;
 
-// --- 2. RESOLVE PLACEMENT (shows year → subject dialogs) ---
-const placement = await resolveSubjectAndParcial(tp, {
+// --- 1. RESOLVE PLACEMENT (shows year → subject dialogs) ---
+const placement = await resolvePlacement(tp, {
   currentFile,
   contextSubject,
   includeParcial: false,
@@ -106,7 +67,7 @@ const selectedYear = year?.toString().trim() || null;
 
 await ensureFolderPath(targetRoot);
 
-// --- 3. BUILD FILE NAME ---
+// --- 2. BUILD FILE NAME ---
 const subjectSlug = toSlug(selectedSubject || generalLabel);
 const courseTag = subjectSlug ? `course/${subjectSlug}` : null;
 
@@ -118,7 +79,7 @@ const destinationFilePath = `${targetRoot}/${finalFileName}.${extension}`;
 const destinationMovePath = `${targetRoot}/${finalFileName}`;
 const needsMove = currentFile?.path !== destinationFilePath;
 
-// --- 4. BUILD CONTENT ---
+// --- 3. BUILD CONTENT ---
 const timestamp = tp.date.now("YYYY-MM-DD");
 const created = timestamp;
 const updated = timestamp;
@@ -288,7 +249,7 @@ lines.push("");
 
 tR = lines.join("\n");
 
-// --- 5. PLACE FILE ---
+// --- 4. PLACE FILE ---
 if (needsMove) {
   await tp.file.move(destinationMovePath);
 }
