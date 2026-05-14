@@ -1,5 +1,5 @@
 <%*
-// Depends on: _templater_scripts/getUniversityContext.js, _templater_scripts/universityNoteUtils.js, _templater_scripts/universityConfig.js
+// Depends on: _templater_scripts/templateBootstrap.js
 //
 // Utility template: run on any lecture or general note to retroactively link
 // existing concept notes via its `concepts` frontmatter array.

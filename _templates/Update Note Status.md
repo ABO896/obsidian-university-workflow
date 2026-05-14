@@ -1,5 +1,5 @@
 <%*
-// Depends on: _templater_scripts/universityNoteUtils.js, _templater_scripts/universityConfig.js
+// Depends on: _templater_scripts/templateBootstrap.js
 //
 // Utility template: bulk-update the `status` frontmatter field across multiple
 // university notes in a single operation.
