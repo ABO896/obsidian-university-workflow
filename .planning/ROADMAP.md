@@ -15,7 +15,7 @@
 
 Plans:
 - [x] 01-01-PLAN.md — Read all 16 source files and write AUDIT.md violation sections (Config-Purity, Templater-Native, Zero-Friction)
-- [ ] 01-02-PLAN.md — Write Expansion Opportunities section and commit the complete AUDIT.md
+- [x] 01-02-PLAN.md — Write Expansion Opportunities section and commit the complete AUDIT.md
 
 **Success Criteria:**
 1. Every file in `_templates/` and `_templater_scripts/` has been reviewed against all three ethos dimensions
