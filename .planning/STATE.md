@@ -3,12 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-last_updated: "2026-05-14"
+last_updated: "2026-05-14T21:12:53.778Z"
 progress:
   total_phases: 2
   completed_phases: 0
   total_plans: 2
   completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -20,7 +21,7 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-05-14)
 
 **Core value:** Every part of the system should be discoverable — the code lives up to its own principles, and the docs make the workflow obvious to anyone who picks it up.
-**Current focus:** Phase 1 — Ethos Audit (Ready to execute)
+**Current focus:** Phase 01 — ethos-audit
 
 ## Phase Status
 
