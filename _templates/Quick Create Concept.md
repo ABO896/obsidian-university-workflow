@@ -204,11 +204,20 @@ tp.hooks.on_all_templates_executed(async () => {
   await tp.app.fileManager.processFrontMatter(targetFile, (fm) => {
     const existing = Array.isArray(fm.concepts) ? fm.concepts : [];
     const newLink = `[[${finalFileName}]]`;
+    const targetLower = finalFileName.toLowerCase();
+    // Exact match only — prevents false positives like "[[Bayes Theorem Advanced]]"
+    // being treated as equal to a new "Bayes Theorem" link.
     const alreadyLinked = existing.some((entry) => {
-      const val = typeof entry === "object"
-        ? (entry?.path ?? "")
-        : String(entry ?? "");
-      return val.toLowerCase().includes(finalFileName.toLowerCase());
+      if (!entry) return false;
+      if (typeof entry === "object") {
+        const path = String(entry?.path ?? "");
+        const basename = (path.split("/").pop() ?? "").replace(/\.md$/i, "");
+        return basename.toLowerCase() === targetLower;
+      }
+      const str = String(entry).trim();
+      const wiki = str.match(/^\[\[([^\]|#]+)(?:[|#][^\]]*)?\]\]$/);
+      const name = (wiki ? wiki[1] : str).replace(/\.md$/i, "");
+      return name.toLowerCase() === targetLower;
     });
     if (!alreadyLinked) {
       fm.concepts = [...existing, newLink];
