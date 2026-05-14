@@ -2,25 +2,25 @@
 // Depends on: _templater_scripts/templateBootstrap.js
 //
 // Utility template: run on any lecture or general note to quickly spin up a
-// linked concept note from a text selection (or manual prompt), then wire it
-// back into the current note's `concepts` frontmatter array.
+// linked concept note from a text selection or clipboard, then wire it back
+// into the current note's `concepts` frontmatter array.
 //
 // Workflow:
-//   1. Highlights a term (optional) → pre-fills the concept name prompt.
-//   2. Resolves placement — inherits course/year/tema from the current note
-//      so dialogs only appear when context is ambiguous.
-//   3. Creates the concept note via tp.file.create_new (no file move needed).
-//   4. Appends [[link]] at the active editor cursor via tp.file.cursor_append.
-//   5. Adds the new link to the current note's `concepts` frontmatter array
-//      via tp.hooks.on_all_templates_executed so the write is safe.
+//   1. Pre-fills concept name from selection, then clipboard as fallback.
+//   2. Style picker: same options as Concept Note Template (💡 / ⚙️).
+//   3. Resolves placement — inherits course/year/tema from the current note.
+//   4. Creates the concept note via tp.file.create_new with identical content
+//      structure to Concept Note Template.
+//   5. Appends [[link]] at the active editor cursor via tp.file.cursor_append.
+//   6. Adds the new link to the current note's `concepts` frontmatter array
+//      via tp.hooks.on_all_templates_executed (safe post-execution write).
 //
-// NOTE: This template intentionally does NOT set tR — the current note body
-// is left untouched; only the cursor position and frontmatter are modified.
+// NOTE: This template intentionally does NOT set tR.
 
 // --- 0. BOOTSTRAP ---
 const ctx = await tp.user.templateBootstrap(tp);
 if (!ctx) return;
-const { currentFile, noteUtils, generalLabel, schema, constants, context } = ctx;
+const { currentFile, noteUtils, generalLabel, schema, constants, context, config } = ctx;
 const {
   ensureFolderPath,
   ensureUniqueFileName,
@@ -35,11 +35,12 @@ const lectureType = noteTypes.lecture ?? "lecture";
 const codeLanguage = constants?.codeLanguage ?? "";
 
 // --- 1. GET CONCEPT NAME ---
-// Pre-fill with any text the user had selected before running the template.
+// Clipboard seeds the prompt when the student has copied a term from a source.
 const selectionDefault = tp.file.selection?.() ?? "";
+const clipboardDefault = selectionDefault ? "" : ((await tp.system.clipboard()) ?? "");
 const nameInput = await tp.system.prompt(
   "New concept name",
-  selectionDefault || null
+  selectionDefault || clipboardDefault || null
 );
 
 if (!nameInput?.trim()) {
@@ -53,9 +54,19 @@ if (!conceptName) {
   return;
 }
 
-// --- 2. RESOLVE PLACEMENT ---
-// Inherit subject/year/tema from the current note's frontmatter so that
-// dialogs only appear when something is genuinely ambiguous.
+// --- 2. PICK STYLE ---
+const styleOptions = [
+  "💡 Concept — an idea, term, or theory",
+  "⚙️ Technique — a method, algorithm, or procedure",
+];
+const styleKeys = ["concept", "technique"];
+const selectedStyle = await tp.system.suggester(styleOptions, styleKeys, false, "Concept style");
+if (!selectedStyle) {
+  new Notice("ℹ️ Concept creation cancelled.", 5_000);
+  return;
+}
+
+// --- 3. RESOLVE PLACEMENT ---
 const contextSubject = tp.frontmatter?.course ?? context?.subject ?? generalLabel;
 const contextYear = tp.frontmatter?.year ?? context?.year ?? null;
 const contextTema = tp.frontmatter?.tema ?? generalLabel;
@@ -65,8 +76,6 @@ const placement = await resolveSubjectParcialTema(tp, {
   contextSubject,
   contextYear,
   includeParcial: false,
-  // Only prompt for year when it cannot be inferred from context, preventing
-  // an unnecessary dialog when the lecture note already has year in frontmatter.
   promptYearWhen: "missing",
   contextTema,
 });
@@ -90,13 +99,16 @@ const subject = resolvedSubject || generalLabel;
 const year = resolvedYear?.toString().trim() || null;
 const tema = resolvedTema?.toString().trim() || generalLabel;
 
-// Unique file name to avoid collisions.
 const extension = "md";
 const finalFileName = ensureUniqueFileName(targetFolder, conceptName, extension);
 
-// --- 3. BUILD CONCEPT NOTE CONTENT ---
-// Mirror the structure of Concept Note Template so Dataview queries are compatible.
+// --- 4. BUILD CONCEPT NOTE CONTENT ---
+// Mirrors Concept Note Template exactly — same frontmatter schema, same sections,
+// same callouts. The only difference: no tp.file.cursor() stops (not supported
+// in tp.file.create_new content).
 const today = tp.date.now("YYYY-MM-DD");
+const reviewIntervals = config?.schema?.reviewIntervals ?? { easy: 14, medium: 7, hard: 3, blank: 1 };
+const nextReview = tp.date.now("YYYY-MM-DD", reviewIntervals.medium ?? 7);
 
 const frontmatterLines = [
   "---",
@@ -108,6 +120,7 @@ const frontmatterLines = [
   "status: draft",
   "aliases: []",
   `tags: [${conceptType}]`,
+  `next_review: ${JSON.stringify(nextReview)}`,
   "---",
 ]
   .filter(Boolean)
@@ -119,52 +132,78 @@ const dataviewBlock = noteUtils.buildConceptBacklinksBlock({
   lectureType,
 });
 
-const conceptContent = [
-  frontmatterLines,
-  "",
-  `# 💡 ${finalFileName}`,
-  "",
-  "## 📜 Definition",
-  "*A formal, textbook-style definition of the concept.*",
-  "- ",
-  "",
-  "## 🧠 Analogy or Metaphor",
-  "*How can I explain this concept using a simple, real-world analogy?*",
-  "- [ ] ",
-  "",
-  "## 🧭 Explanation in My Own Words",
-  "*The Feynman Technique: Explaining it simply to prove I understand it.*",
-  "- [ ] Insight",
-  "",
-  "---",
-  "",
-  "## 🔗 Connections",
-  "*This concept is mentioned in the following lectures and notes:*",
-  "",
-  dataviewBlock,
-  "",
-].join("\n");
+let contentLines = [frontmatterLines, ""];
 
-// --- 4. CREATE THE CONCEPT NOTE ---
-// tp.file.create_new writes the note directly — no move needed since we
-// specify the target folder up front.
+if (selectedStyle === "concept") {
+  contentLines.push(`# 💡 ${finalFileName}`);
+  contentLines.push("");
+  contentLines.push("> [!abstract] My Assertion");
+  contentLines.push("> ");
+  contentLines.push("");
+  contentLines.push("## 🧠 Analogy");
+  contentLines.push("*Compare it to something you already understand.*");
+  contentLines.push("- ");
+  contentLines.push("");
+  contentLines.push("## 📝 Feynman Explanation");
+  contentLines.push("*Explain this to someone who missed every lecture on it.*");
+  contentLines.push("- ");
+  contentLines.push("");
+  contentLines.push("> [!warning] Common Misunderstanding");
+  contentLines.push("> ");
+  contentLines.push("");
+  contentLines.push("> [!question]- Self-test");
+  contentLines.push("> ");
+  contentLines.push(">");
+  contentLines.push("> **Answer:**");
+  contentLines.push("");
+  contentLines.push("## 🔗 Where This Appears");
+  contentLines.push("*Lectures and notes that cover this concept:*");
+  contentLines.push("");
+  contentLines.push(dataviewBlock);
+  contentLines.push("");
+} else {
+  contentLines.push(`# ⚙️ ${finalFileName}`);
+  contentLines.push("");
+  contentLines.push("## 🎯 When to Reach For This");
+  contentLines.push("*What does the problem look like when this technique applies?*");
+  contentLines.push("");
+  contentLines.push("## ⚙️ Steps — My Words");
+  contentLines.push("1. ");
+  contentLines.push("");
+  contentLines.push("## 💻 Example I Worked Through");
+  contentLines.push(`\`\`\`${codeLanguage}`);
+  contentLines.push("```");
+  contentLines.push("");
+  contentLines.push("> [!warning] Edge Cases");
+  contentLines.push("> - ");
+  contentLines.push("");
+  contentLines.push("> [!question]- Self-test");
+  contentLines.push("> ");
+  contentLines.push(">");
+  contentLines.push("> **Answer:**");
+  contentLines.push("");
+  contentLines.push("## 🔗 Where This Appears");
+  contentLines.push("*Lectures and notes that use this technique:*");
+  contentLines.push("");
+  contentLines.push(dataviewBlock);
+  contentLines.push("");
+}
+
+const conceptContent = contentLines.join("\n");
+
+// --- 5. CREATE THE CONCEPT NOTE ---
 const tFolder = tp.app.vault.getAbstractFileByPath(targetFolder);
 await tp.file.create_new(conceptContent, finalFileName, false, tFolder ?? targetFolder);
 
-// --- 5. WIRE INTO THE CURRENT NOTE ---
-// Append [[link]] at the active editor cursor so the student can place it
-// exactly where they need it in the lecture note body.
+// --- 6. WIRE INTO THE CURRENT NOTE ---
 tp.file.cursor_append(`[[${finalFileName}]]`);
 
-// Add the new link to the current note's `concepts` array after Templater
-// finishes its own write pass, matching the hook pattern from Assign Tema.
 const currentFilePath = currentFile.path;
 tp.hooks.on_all_templates_executed(async () => {
   const targetFile = tp.app.vault.getAbstractFileByPath(currentFilePath) ?? currentFile;
   await tp.app.fileManager.processFrontMatter(targetFile, (fm) => {
     const existing = Array.isArray(fm.concepts) ? fm.concepts : [];
     const newLink = `[[${finalFileName}]]`;
-    // Skip if a link to this concept already exists in the array.
     const alreadyLinked = existing.some((entry) => {
       const val = typeof entry === "object"
         ? (entry?.path ?? "")

@@ -30,16 +30,11 @@ const contextYear = context?.year ?? tp.frontmatter?.year ?? null;
 const contextParcial = context?.parcial ?? generalLabel;
 
 // --- 1. RESOLVE PLACEMENT ---
-// When parcial is enabled: year → subject → parcial dialogs; note goes into
-//   Parciales/<Parcial N>/.
-// When parcial is disabled: year → subject only; note goes to subject root.
 const placement = await resolvePlacement(tp, {
   currentFile,
   contextSubject,
   contextYear,
   contextParcial,
-  // includeParcial is respected only when features.parcial = true in config;
-  // universityNoteUtils gates it automatically via effectiveIncludeParcial.
   includeParcial: isParcialEnabled,
   promptYearWhen: "always",
 });
@@ -59,7 +54,6 @@ const parcial = isParcialEnabled
   ? resolvedParcial?.toString().trim() || generalLabel
   : generalLabel;
 
-// Use subject root when parcial is disabled (avoid placing at university root).
 const effectiveFolder = isParcialEnabled
   ? targetFolder
   : (subjectRootPath || targetFolder);
@@ -71,7 +65,17 @@ if (!effectiveFolder) {
 
 await ensureFolderPath(effectiveFolder);
 
-// --- 2. BUILD FILE NAME ---
+// --- 2. RECALL DUMP (before file creation and before Dataview tables) ---
+// Retrieval practice before review: the student writes from memory first.
+// The dialog appears before the note is created so there is no note to peek at.
+const recallDump = await tp.system.prompt(
+  "Memory dump — write everything you remember. No notes, no peeking. Confirm when done.",
+  "",
+  false,
+  true
+);
+
+// --- 3. BUILD FILE NAME ---
 const today = tp.date.now("YYYY-MM-DD");
 const parcialSuffix =
   isParcialEnabled && parcial !== generalLabel ? ` - ${parcial}` : "";
@@ -83,7 +87,7 @@ const destinationFilePath = `${effectiveFolder}/${finalFileName}.${extension}`;
 const destinationMovePath = `${effectiveFolder}/${finalFileName}`;
 const needsMove = currentFile?.path !== destinationFilePath;
 
-// --- 3. BUILD CONTENT ---
+// --- 4. BUILD CONTENT ---
 const parcialFmLine =
   isParcialEnabled && parcial !== generalLabel
     ? `parcial: ${JSON.stringify(parcial)}`
@@ -103,7 +107,6 @@ const frontMatter = [
   .filter(Boolean)
   .join("\n");
 
-// Scope Dataview queries to the university root for performance.
 const dvSource = JSON.stringify(baseUniversityPath ?? "");
 const courseLiteral = JSON.stringify(subject);
 const yearLiteral = year ? JSON.stringify(year) : null;
@@ -113,21 +116,34 @@ const headerTitle =
     ? `${subject} — ${parcial} Study Guide`
     : `${subject} — Study Guide`;
 
+const safeRecallDump = recallDump?.trim() || "*(nothing captured — close notes and try again next time)*";
+
 const lines = [frontMatter, ""];
 
 lines.push(`# 📚 ${headerTitle}`);
 lines.push("");
 
-lines.push("## ✅ Topics to Cover");
-lines.push(`- [ ] ${tp.file.cursor(1)}`);
-lines.push("- [ ] ");
+// The warning callout reinforces that recall comes BEFORE review.
+lines.push("> [!warning] Do This First");
+lines.push("> Close all notes. Write everything you remember **before** scrolling down.");
 lines.push("");
 
-lines.push("## 📝 Summary Notes");
-lines.push(tp.file.cursor(2));
+// Recall dump: captured from the pre-creation prompt above. This is the student's
+// cold memory output before any review material is visible.
+lines.push("## 🧠 Recall Dump");
+lines.push(safeRecallDump);
 lines.push("");
 
-// --- Concepts section ---
+// Gaps are the actual study priorities — what went blank is what needs work.
+lines.push("## 🕳️ Gaps I Noticed");
+lines.push("*What went blank? These are your actual study priorities.*");
+lines.push(`- ${tp.file.cursor(1)}`);
+lines.push("");
+lines.push("---");
+lines.push("");
+
+// Dataview tables follow the recall dump — confirmation and gap-filling,
+// not the primary content. Students look these up AFTER retrieving from memory.
 lines.push("## 💡 Key Concepts");
 lines.push("```dataview");
 lines.push(`TABLE default(created, default(date, file.ctime)) AS "Created", tema AS "Tema"`);
@@ -138,7 +154,6 @@ lines.push(`SORT default(created, default(date, file.ctime)) ASC`);
 lines.push("```");
 lines.push("");
 
-// --- Lectures section ---
 lines.push("## 📘 Lectures");
 lines.push("```dataview");
 lines.push(`TABLE tema AS "Tema", default(created, default(date, file.ctime)) AS "Created"`);
@@ -149,19 +164,16 @@ lines.push(`SORT default(created, default(date, file.ctime)) ASC`);
 lines.push("```");
 lines.push("");
 
-// --- Practice questions ---
 lines.push("## ❓ Practice Questions");
-lines.push(`- [ ] ${tp.file.cursor(3)}`);
+lines.push(`- ${tp.file.cursor(2)}`);
 lines.push("");
 
-// --- Formulas / key facts table ---
 lines.push("## 🔑 Formulas & Key Facts");
 lines.push("| Item | Detail |");
 lines.push("| --- | --- |");
 lines.push("| | |");
 lines.push("");
 
-// --- Open tasks ---
 lines.push("## ⏳ Open Tasks");
 lines.push("```dataview");
 lines.push(`TASK FROM ${dvSource}`);
@@ -172,7 +184,7 @@ lines.push("");
 
 tR = lines.join("\n");
 
-// --- 4. PLACE FILE ---
+// --- 5. PLACE FILE ---
 if (needsMove) {
   await tp.file.move(destinationMovePath);
 }

@@ -43,9 +43,13 @@ const universityConfig = {
       "subject-hub": "subject-hub",
       "parcial-prep": "parcial-prep",
       general: "general",
+      "university-dashboard": "university-dashboard",
     },
     // Ordered workflow stages used by the status picker and Dataview filters.
-    statuses: ["draft", "reviewed", "complete"],
+    // raw = unprocessed Quick capture; must be upgraded within 24h.
+    statuses: ["raw", "draft", "reviewed", "complete"],
+    // Days until next review per recall difficulty (used by Mark Reviewed utility).
+    reviewIntervals: { easy: 14, medium: 7, hard: 3, blank: 1 },
   },
 };
 

@@ -119,9 +119,40 @@ lines.push("## ✅ Overview");
 lines.push("- [ ] Course summary");
 lines.push("- [ ] Key resources");
 lines.push("- [ ] Upcoming priorities");
-// Cursor lands on a blank item so the user can start adding content immediately
-// without overwriting any placeholder text.
 lines.push(`- [ ] ${tp.file.cursor()}`);
+lines.push("");
+
+// Due for Review: concept notes whose next_review date has passed.
+lines.push("## 🔔 Due for Review");
+lines.push("```dataview");
+lines.push(`TABLE next_review AS "Due", last_reviewed AS "Last Reviewed"`);
+lines.push(`FROM ${dvSource}`);
+lines.push(`WHERE course = this.course AND type = "${conceptType}" AND next_review <= date(today)`);
+lines.push("SORT next_review ASC");
+lines.push("```");
+lines.push("");
+
+// Note Health: at-a-glance status distribution so students can see whether notes
+// are being processed (raw: 0  draft: 2  reviewed: 8) or piling up unprocessed.
+const statusesLiteral = JSON.stringify(
+  Array.isArray(schema?.statuses) && schema.statuses.length > 0
+    ? schema.statuses
+    : ["raw", "draft", "reviewed", "complete"]
+);
+lines.push("## 📊 Note Health");
+lines.push("```dataviewjs");
+lines.push(String.raw`const course = dv.current().course ?? ${generalLiteral};
+const statuses = ${statusesLiteral};
+const pages = dv
+  .pages(${dvSource})
+  .where((p) => (p.course ?? ${generalLiteral}) === course && p.status)
+  .array();
+const counts = Object.fromEntries(statuses.map((s) => [s, 0]));
+for (const p of pages) {
+  if (p.status in counts) counts[p.status]++;
+}
+dv.paragraph(statuses.map((s) => "**" + s + ":** " + counts[s]).join("  ·  "));`);
+lines.push("```");
 lines.push("");
 
 lines.push("## 📘 Lectures");
