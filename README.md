@@ -48,6 +48,7 @@ University notes quickly sprawl across random folders, and every template tweak 
 - 🚀 Dataview-ready – templates ship with tables, dashboards, and backlink queries that populate instantly.
 - 📚 Guarded workflows – `tp.config.run_mode` + untitled-note checks prevent accidental overwrites.
 - 🔁 Reusable helpers – path logic, slugging, and normalization are shared for any new template you add.
+- ⚙️ Bootstrap helper – a single `tp.user.templateBootstrap(tp)` call replaces the ~30-line guard + utility-loading preamble, keeping every template lean and consistent.
 - 🎯 Multi-select concepts – Lecture Note uses `tp.system.multi_suggester` (Templater ≥ 2.16) to pre-tag which concepts a lecture covers.
 - 🔀 Optional exam-period grouping – `features.parcial` toggle (default off) enables Parcial/Semester folder organisation without affecting normal note creation.
 - 🔗 Retroactive concept linking – **Link Concepts to Note** wires existing concept notes into any lecture's `concepts` array via multi-select.
@@ -58,7 +59,7 @@ University notes quickly sprawl across random folders, and every template tweak 
 
 1. Copy `_templates/` and `_templater_scripts/` into your vault root.
 2. In Obsidian → *Settings → Templater*, point **Template folder** to `_templates` and **Script folder** to `_templater_scripts`.
-3. Reload Templater user scripts so `universityConfig`, `getUniversityContext`, and `universityNoteUtils` register.
+3. Reload Templater user scripts so `universityConfig`, `getUniversityContext`, `universityNoteUtils`, and `templateBootstrap` register.
 4. Enable the Dataview community plugin for dashboards and inline queries to render.
 5. Run a template via the command palette **"Templater: Create new note from template"** or open a fresh untitled note and trigger it from there.
 
@@ -71,7 +72,7 @@ University notes quickly sprawl across random folders, and every template tweak 
 ## How it works
 
 - Template command →
-- Shared helpers (`tp.user.universityNoteUtils`) →
+- Bootstrap setup (`tp.user.templateBootstrap` — guards, loads all utilities, returns a ready-to-use context object) →
 - Placement resolver (subject → tema folders + optional year metadata) →
 - Frontmatter builder (type, course, year, tema, timestamps, status, aliases) →
 - Dataview surfaces (tables, dashboards, backlinks)
@@ -307,6 +308,7 @@ _templater_scripts/
   scriptLoader.js              # Shared module-loading helper (requireScript)
   getUniversityContext.js      # Infers subject/year from current file path
   universityNoteUtils.js       # Shared helpers for placement, slugging, and naming
+  templateBootstrap.js         # One-call setup: guards + utility loading for all templates
 tests/
   universityNoteUtils.test.js  # Node.js test suite for pure helper functions
 AGENTS.md                      # Codex project guidance
@@ -317,7 +319,7 @@ README.md                      # Documentation you are reading
 
 ## Extending the system
 
-- **Add a new note type.** Start a template in `_templates/`, import `tp.user.universityNoteUtils()`, and call `resolveSubjectParcialTema` (or `resolveSubjectAndParcial`) to reuse placement logic. Follow the existing frontmatter keys so Dataview filters stay compatible.
+- **Add a new note type.** Start a template in `_templates/`, call `await tp.user.templateBootstrap(tp)` to load all utilities in one step, then call `resolveSubjectParcialTema` (or `resolvePlacement`) to reuse placement logic. Follow the existing frontmatter keys so Dataview filters stay compatible.
 - **Use placement helpers.** After `resolveSubjectParcialTema`, call `ensureFolderPath` and `ensureUniqueFileName` before moving the file; this avoids duplicating folder math or sanitization.
 - **Align frontmatter with Dataview.** New templates should set `type`, `course`, `year`, `tema`, `created`, and `status` (plus `updated` when relevant) so subject hubs and concept queries include them automatically.
 - **Lean on utilities.** Functions like `toSlug`, `normalizeYear`, and `dedupePreserveOrder` keep tags, folder names, and prompt options predictable.
@@ -366,7 +368,7 @@ README.md                      # Documentation you are reading
 
 **Can I add more years or temas?** Absolutely; update the `years` array and the helpers will normalize new values.
 
-**How do I add a new template?** Copy an existing template, keep the helper imports, and reuse `resolveSubjectParcialTema` before you add custom sections.
+**How do I add a new template?** Copy an existing template and replace its preamble with `const ctx = await tp.user.templateBootstrap(tp); if (!ctx) return;`. Destructure what you need from `ctx`, then call `resolveSubjectParcialTema` (or `resolvePlacement`) for placement before adding custom sections.
 
 **Can I avoid extra year prompts?** Yes; once a subject already has a consistent `year` in frontmatter, helpers auto-reuse it and stop asking unless there is ambiguity.
 
