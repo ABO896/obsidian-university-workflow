@@ -525,3 +525,15 @@ describe('buildConceptBacklinksBlock', () => {
     assert.ok(!result.includes('if (!entryValue) return false;'), 'single-line if found');
   });
 });
+
+// ---------------------------------------------------------------------------
+// templateBootstrap (smoke test — tp.* calls are not testable in Node)
+// ---------------------------------------------------------------------------
+describe('templateBootstrap', () => {
+  const path = require('path');
+  const templateBootstrap = require(path.join(__dirname, '../_templater_scripts/templateBootstrap'));
+
+  test('module exports a function', () => {
+    assert.equal(typeof templateBootstrap, 'function');
+  });
+});
