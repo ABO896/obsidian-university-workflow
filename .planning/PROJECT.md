@@ -8,6 +8,18 @@ A config-driven Obsidian Templater system for university note-taking. The projec
 
 Every part of the system should be discoverable: the code should live up to its own principles, and the docs should make the workflow obvious to anyone who picks it up.
 
+## Current Milestone: v1.1 Ethos Implementation
+
+**Goal:** Make the codebase live up to its own audit — fix the 2 critical violations, sweep all 22 minor violations, and close 4 expansion opportunities catalogued in AUDIT.md.
+
+**Target features:**
+- Critical fixes: `requireNewFile` guard in Concept Note Template + status fallback missing `"raw"` in Update Note Status
+- Config-purity sweep: remove hardcoded literal fallbacks from `universityNoteUtils.js` and templates (11 violations)
+- Templater-native sweep: bare `app.*` → `tp.app.*`, spurious `await` on sync call (4 violations)
+- Zero-friction sweep: `promptYearWhen: "always"` → `"missing"` in 4 templates
+- E-03: Subject Hub `updated` frontmatter key — document in CONVENTIONS.md or remove from template
+- E-04: Centralize `reviewIntervals` fallback in `universityConfig.js` (2 templates currently duplicate it)
+
 ## Requirements
 
 ### Validated
@@ -76,4 +88,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-15 — Phase 02 (documentation-overhaul) complete — milestone v1.0 done*
+*Last updated: 2026-05-15 — Milestone v1.1 started — Ethos Implementation*
