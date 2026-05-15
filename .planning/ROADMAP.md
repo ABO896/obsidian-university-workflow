@@ -16,7 +16,7 @@
 Plans:
 - [x] 01-01-PLAN.md — Read all 16 source files and write AUDIT.md violation sections (Config-Purity, Templater-Native, Zero-Friction)
 - [x] 01-02-PLAN.md — Write Expansion Opportunities section and commit the complete AUDIT.md
-- [ ] 01-03-PLAN.md — Gap closure: fix CR-01 (wrong variable `config` → `schema` in fix instructions) and CR-02 (missing Section 3 entry for General Note.md + footer count correction)
+- [x] 01-03-PLAN.md — Gap closure: fix CR-01 (wrong variable `config` → `schema` in fix instructions) and CR-02 (missing Section 3 entry for General Note.md + footer count correction)
 
 **Success Criteria:**
 1. Every file in `_templates/` and `_templater_scripts/` has been reviewed against all three ethos dimensions
