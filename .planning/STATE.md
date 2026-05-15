@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-last_updated: "2026-05-14T21:12:53.778Z"
+last_updated: "2026-05-15T00:00:00.000Z"
 progress:
   total_phases: 2
   completed_phases: 0
-  total_plans: 2
+  total_plans: 3
   completed_plans: 0
   percent: 0
 ---
 
 # Project State
 
-**Last updated:** 2026-05-14
+**Last updated:** 2026-05-15
 
 ## Project Reference
 
@@ -27,17 +27,18 @@ See: `.planning/PROJECT.md` (updated 2026-05-14)
 
 | Phase | Name | Status |
 |-------|------|--------|
-| 1 | Ethos Audit | Ready to execute (2 plans) |
+| 1 | Ethos Audit | Ready to execute (3 plans — gap closure added) |
 | 2 | Documentation Overhaul | Not started |
 
 ## Active Phase
 
-**Phase 1: Ethos Audit** — 2 plans across 2 waves
+**Phase 1: Ethos Audit** — 3 plans across 3 waves
 
 | Plan | Wave | Objective |
 |------|------|-----------|
 | 01-01 | 1 | Read all 16 source files and write AUDIT.md violation sections |
 | 01-02 | 2 | Write Expansion Opportunities section and commit AUDIT.md |
+| 01-03 | 3 | Gap closure — fix CR-01 (wrong variable in fix instruction) and CR-02 (missing Section 3 entry + footer count) |
 
 ## Notes
 
