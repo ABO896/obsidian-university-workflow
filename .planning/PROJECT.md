@@ -18,10 +18,12 @@ Every part of the system should be discoverable: the code should live up to its 
 - ✓ Dataview dashboards for backlinks and subject summaries — existing
 - ✓ Node.js test suite for pure helper functions (`universityNoteUtils.test.js`) — existing
 
-### Active
+### Validated
 
-- [ ] Audit codebase against all three ethos principles: config-driven purity, Templater-native usage, zero friction
-- [ ] Produce a structured findings document with actionable gaps and expansion opportunities
+- ✓ Audit codebase against all three ethos principles: config-driven purity, Templater-native usage, zero friction — Validated in Phase 01: ethos-audit
+- ✓ Produce a structured findings document with actionable gaps and expansion opportunities — Validated in Phase 01: ethos-audit (AUDIT.md: 2 critical, 22 minor, 9 expansion opportunities)
+
+### Active
 - [ ] Rewrite README for a fellow student as the target reader — comfortable with Obsidian plugins, unfamiliar with this vault structure
 - [ ] Add clear setup steps: how to point Templater and Dataview at the correct folders
 - [ ] Add a worked example showing the day-to-day workflow (create a lecture note → link concepts → review)
@@ -73,4 +75,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-14 after initialization*
+*Last updated: 2026-05-15 — Phase 01 (ethos-audit) complete*
