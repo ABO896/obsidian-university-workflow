@@ -23,11 +23,12 @@ Every part of the system should be discoverable: the code should live up to its 
 - ✓ Audit codebase against all three ethos principles: config-driven purity, Templater-native usage, zero friction — Validated in Phase 01: ethos-audit
 - ✓ Produce a structured findings document with actionable gaps and expansion opportunities — Validated in Phase 01: ethos-audit (AUDIT.md: 2 critical, 22 minor, 9 expansion opportunities)
 
-### Active
-- [ ] Rewrite README for a fellow student as the target reader — comfortable with Obsidian plugins, unfamiliar with this vault structure
-- [ ] Add clear setup steps: how to point Templater and Dataview at the correct folders
-- [ ] Add a worked example showing the day-to-day workflow (create a lecture note → link concepts → review)
-- [ ] Explain `universityConfig.js` customization so users can adapt subjects, years, and folders to their own vault
+### Validated
+
+- ✓ Rewrite README for a fellow student as the target reader — Validated in Phase 02: documentation-overhaul
+- ✓ Add clear setup steps: how to point Templater and Dataview at the correct folders — Validated in Phase 02: documentation-overhaul
+- ✓ Add a worked example showing the day-to-day workflow (create a lecture note → link concepts → review) — Validated in Phase 02: documentation-overhaul
+- ✓ Explain `universityConfig.js` customization so users can adapt subjects, years, and folders to their own vault — Validated in Phase 02: documentation-overhaul
 
 ### Out of Scope
 
@@ -75,4 +76,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-15 — Phase 01 (ethos-audit) complete*
+*Last updated: 2026-05-15 — Phase 02 (documentation-overhaul) complete — milestone v1.0 done*
