@@ -2,15 +2,14 @@
 phase: 01-ethos-audit
 reviewed: 2026-05-15T00:00:00Z
 depth: standard
-files_reviewed: 2
+files_reviewed: 1
 files_reviewed_list:
-  - .gitignore
   - AUDIT.md
 findings:
-  critical: 2
+  critical: 1
   warning: 3
   info: 2
-  total: 7
+  total: 6
 status: issues_found
 ---
 
@@ -18,122 +17,96 @@ status: issues_found
 
 **Reviewed:** 2026-05-15
 **Depth:** standard
-**Files Reviewed:** 2
+**Files Reviewed:** 1
 **Status:** issues_found
 
 ## Summary
 
-Two files were reviewed: `.gitignore` (modified to allow `AUDIT.md` to be tracked) and `AUDIT.md` (the ethos audit report itself, covering 16 template and script files across three quality dimensions).
+`AUDIT.md` is the ethos-audit report covering 16 files (11 templates, 5 scripts) across three quality dimensions plus an expansion section. The file-count, template/script split, and all line-number citations were verified against the actual source files.
 
-The `.gitignore` change is structurally correct. The `AUDIT.md` report is thorough and well-structured, but contains two critical defects: one proposed fix references a variable that does not exist in scope at the point of the fix, and one genuine violation is omitted despite being the same pattern flagged three times elsewhere in the same section. Three warning-level issues cover inconsistency in the fix narrative, a duplicate cross-reference section that is not disclosed as intentional, and a line-count discrepancy in the footer. Two info items cover minor structural observations.
+Most findings are accurate and grounded. One critical defect: the proposed fix for the Section 1 Critical item references a variable that is not in scope in `Update Note Status.md` and would produce a `ReferenceError` if applied as written. Three warning-level issues cover a mischaracterisation of the `await` risk, an undisclosed structural duplication in Section 4, and a line-number discrepancy for one Section 2 Minor item. Two info items note minor structural observations.
 
 ---
 
 ## Critical Issues
 
-### CR-01: Fix for Section 1 Critical references `config` which is not in scope
+### CR-01: Section 1 Critical fix references `config` which is not destructured in `Update Note Status.md`
 
 **File:** `AUDIT.md:13`
 **Issue:** The proposed fix for `Update Note Status.md` line 26 reads:
 
-> Fix: Replace the hardcoded fallback with `config?.schema?.statuses ?? ["raw", "draft", "reviewed", "complete"]`
+> Fix: Replace the hardcoded fallback with `schema?.statuses ?? ["raw", "draft", "reviewed", "complete"]`
 
-`config` is not in scope at that point in the template. The template destructures `const { noteUtils, schema } = ctx;` at line 24 — `config` is not extracted. The correct variable to use is `schema`, which is already destructured and directly holds the config's schema object. Writing `config?.schema?.statuses` would throw a `ReferenceError` at runtime.
+The actual text in the AUDIT document says `config?.schema?.statuses` (not `schema?.statuses`). `Update Note Status.md` line 24 destructures `const { noteUtils, schema } = ctx;` — `config` is not extracted from `ctx`. Applying the AUDIT fix verbatim would produce a `ReferenceError: config is not defined` at runtime.
 
-Additionally, the fallback literal `["raw", "draft", "reviewed", "complete"]` in the fix is itself still a hardcoded value — which is the root problem being fixed. The pattern already used elsewhere in the codebase (e.g., `Subject Hub.md` lines 137-141, `University Dashboard.md` lines 29-32) is:
+The variable `schema` IS already in scope and holds `ctx.schema`, which is sourced directly from `config.schema` inside `templateBootstrap.js`. The correct fix is to reference `schema?.statuses` directly, matching the pattern already used in `Subject Hub.md` and `University Dashboard.md`:
 
 ```js
-Array.isArray(schema?.statuses) && schema.statuses.length > 0
-  ? schema.statuses
-  : ["raw", "draft", "reviewed", "complete"]
-```
-
-The AUDIT fix should match this pattern and reference `schema` (not `config?.schema`), since `schema` is already in scope.
-
-**Fix:** Correct the proposed fix to:
-```js
-// Replace line 26-28 in Update Note Status.md with:
+// Update Note Status.md line 26-28 — correct fix:
 const statuses =
   Array.isArray(schema?.statuses) && schema.statuses.length > 0
     ? schema.statuses
     : ["raw", "draft", "reviewed", "complete"];
 ```
 
----
+Note: this also corrects the fallback literal, which omits `"raw"` in the current source. The AUDIT correctly identifies the missing `"raw"` but its fix expression cannot be applied without first adding `config` to the destructure on line 24 — an extra step the AUDIT does not mention.
 
-### CR-02: `General Note.md` `promptYearWhen: "always"` omitted from Section 3 Zero Friction
-
-**File:** `AUDIT.md:65-73` (Section 3 Zero Friction findings)
-**Issue:** Section 3 flags `promptYearWhen: "always"` on three templates:
-
-- `Assign Tema to Current Note.md` line 30
-- `Concept Note Template.md` line 28
-- `Lecture Note.md` line 30
-
-`General Note.md` uses the same pattern at line 49 (`promptYearWhen: "always"` inside the `resolveSubjectParcialTema` call). The AUDIT covers `General Note.md` in Section 3 for its `basename` guard but does not mention the `promptYearWhen: "always"` at line 49, despite it being an identical deviation from the preferred `"missing"` pattern. The omission means a consumer applying the Section 3 findings will fix three templates but leave `General Note.md` with the same friction point.
-
-**Fix:** Add a finding to Section 3:
-
-> **`_templates/General Note.md` line 49:** `promptYearWhen: "always"` — same pattern as Lecture Note, Assign Tema, and Concept Note Template. Year is prompted even when context is unambiguous. Fix: Change to `promptYearWhen: "missing"`.
+**Fix:** Correct the AUDIT fix expression from `config?.schema?.statuses` to `schema?.statuses` (or the full `Array.isArray` guard pattern shown above).
 
 ---
 
 ## Warnings
 
-### WR-01: Section 4 "Expansion Opportunities" duplicates two critical findings without disclosure
-
-**File:** `AUDIT.md:79-81` (items 1 and 2 in Section 4)
-**Issue:** Expansion items 1 and 2 repeat verbatim the same violations already classified as Critical in Sections 1 and 2. The AUDIT states "This is also documented as a Critical violation in Section X" — but does not explain why the same finding appears twice, or that Section 4 is intentionally a reframing rather than additive coverage. A reader skimming Section 4 may treat it as a separate set of findings, or a reader applying fixes may count violations twice. The AUDIT should clarify that these are cross-references, not additional violations.
-
-**Fix:** Add a note at the top of Section 4 such as:
-
-> Items marked "(see Section X)" are restatements of violations already documented above, included here to surface their highest-impact interpretation. No additional files are affected.
-
----
-
-### WR-02: Footer violation count does not match findings body
-
-**File:** `AUDIT.md:98`
-**Issue:** The footer states "2 critical violations | 19 minor violations". Counting the minor findings in the body:
-
-- Section 1 Minor: 8 items
-- Section 2 Minor: 5 items
-- Section 3 Minor: 5 items
-
-That sums to 18 minor violations in the body. The footer claims 19. The discrepancy is likely the `General Note.md` `promptYearWhen: "always"` omission identified in CR-02 — if that finding were present in Section 3, the count would be 19. However, as the report stands, the count is 18, not 19, making the footer internally inconsistent with the body.
-
-**Fix:** Either add the missing `General Note.md` Section 3 finding (which would make the count accurate) or correct the footer count to 18.
-
----
-
-### WR-03: Section 2 Minor finding for `templateBootstrap.js` mischaracterizes `await` on sync function as merely "misleading"
+### WR-01: Section 2 Minor fix for `templateBootstrap.js` understates the maintenance risk of the spurious `await`
 
 **File:** `AUDIT.md:51`
-**Issue:** The AUDIT describes the spurious `await` on `getConfig()` as "harmless (wrapping a non-Promise in `await` is a no-op) but misleading". While technically correct that `await nonPromise` resolves immediately, the characterization undersells the issue. Any future maintainer who makes `getConfig` async (e.g., to support remote config loading) will see the `await` already present and assume the async path was already designed for — this creates a false sense that the async contract is established, when in fact there is no contract, just a stale artefact. The severity classification (Minor) is correct, but the impact description should mention this maintenance risk.
+**Issue:** The AUDIT describes the `await getConfig()` on a synchronous function as "harmless (wrapping a non-Promise in `await` is a no-op) but misleading." This undersells the risk. A future maintainer who makes `getConfig` async — a plausible change, e.g. to support remote or lazy-loaded config — will see the `await` already present and assume the async call path was intentionally designed. This false signal can suppress investigation of whether the async path is handled correctly throughout the call chain. The severity classification (Minor) is appropriate, but the impact description should include this maintenance-trap risk.
 
-**Fix:** Expand the fix note to mention the maintenance-trap risk:
+**Fix:** Expand the fix note:
 
 > Remove the `await`: `const config = typeof getConfig === "function" ? getConfig() : null;` — the spurious `await` implies an async contract that does not exist. If `getConfig` is later made async, the `await` will appear intentional and suppress investigation of whether the async path is handled correctly throughout.
 
 ---
 
-## Info
+### WR-02: Section 4 Expansion items 1 and 2 duplicate Section 1/2 Critical findings without disclosure
 
-### IN-01: `.gitignore` exception order places `AUDIT.md` after `.planning/` — no functional issue
+**File:** `AUDIT.md:79-83`
+**Issue:** Expansion items 1 and 2 restate verbatim the same violations already classified as Critical in Sections 1 and 2. The AUDIT acknowledges this with "This is also documented as a Critical violation in Section X" — but does not explain why the same finding appears in two places, or that Section 4 is intentionally a reframing (highest-impact interpretation) rather than additive coverage. A reader skimming Section 4 may treat these as additional violations, or a fix implementer may count them twice.
 
-**File:** `.gitignore:18`
-**Issue:** The `!AUDIT.md` exception is placed at line 18, between `!CLAUDE.md` (line 17) and `!docs/` (line 19). Since the gitignore file ignores everything by default (`*` at line 2) and then adds exceptions, order within the exceptions block does not affect correctness — all exceptions apply regardless of their position relative to each other. This is a style observation only.
+**Fix:** Add a note at the top of Section 4 such as:
 
-**Fix:** No action required. The exception is correct and functional.
+> Items marked "(see Section X)" are restatements of violations already documented above, included here to surface their highest-impact interpretation. No additional files are affected beyond those cited in the earlier sections.
 
 ---
 
-### IN-02: Section 4 items 5-8 are annotated "(out of scope for this initiative)" but mix with actionable items without visual separation
+### WR-03: Section 2 Minor cites wrong line number for `General Note.md` `promptYearWhen` item
 
-**File:** `AUDIT.md:87-93` (items 5-8)
-**Issue:** Items 5-8 are expansion opportunities explicitly marked out of scope. Items 1-4 are actionable fixes. The section presents all nine items in a flat numbered list, making it easy to miss which items are actionable versus deferred. A reader tasked with implementing expansion opportunities may include items 5-8 in scope.
+**File:** `AUDIT.md:55`
+**Issue:** The Section 2 Minor finding for `General Note.md` at line 55 says the template "implements its own inline guard at lines 22–38." The guard is the `basename.startsWith("untitled")` check. This is accurate. However, the same section states `const ctx = await tp.user.templateBootstrap(tp)` is at "line 5" — confirmed correct — and later Section 3 (line 75) flags `promptYearWhen: "always"` at "line 49." Tracing the actual file: the `resolveSubjectParcialTema` call with `promptYearWhen: "always"` is at lines 44–51 of `General Note.md`, making line 49 accurate for the `promptYearWhen` key. No line-number error there.
 
-**Fix:** Consider splitting Section 4 into two sub-sections: "Actionable (in scope)" (items 1-4) and "Deferred (out of scope)" (items 5-8), or use a visual separator (e.g., a horizontal rule) between item 4 and item 5 to make the boundary explicit.
+The discrepancy is subtler: Section 2 Minor (line 55) says the guard is "a parallel guard path" and says the Section 3 entry covers the same template. But the Section 2 and Section 3 findings for `General Note.md` describe **different issues** on **different lines** (lines 22–38 vs. line 49) without cross-referencing each other. A reader applying fixes may miss that both items apply to the same file and think they are alternative descriptions of one issue.
+
+**Fix:** Add a mutual cross-reference: in the Section 2 Minor entry, append "See also Section 3 for `promptYearWhen: "always"` at line 49." In the Section 3 entry (line 75), append "See also Section 2 Templater-Native for the related `basename` guard discussion."
+
+---
+
+## Info
+
+### IN-01: Section 4 mixes actionable and deferred items in a flat list without visual separation
+
+**File:** `AUDIT.md:77-95`
+**Issue:** Items 1–4 in Section 4 are actionable fixes; items 5–8 are explicitly annotated "(out of scope for this initiative)." All nine items appear in a flat numbered list. A reader tasked with implementing expansion opportunities may inadvertently include deferred items 5–8, or miss that the actionable boundary ends at item 4.
+
+**Fix:** Consider splitting Section 4 into two sub-sections — "Actionable (in scope)" and "Deferred (out of scope)" — or add a horizontal rule and a brief heading between item 4 and item 5 to make the scope boundary explicit.
+
+---
+
+### IN-02: Footer expansion opportunity count includes item 9 but Section 4 body only lists items 1–8
+
+**File:** `AUDIT.md:100`
+**Issue:** The footer states "9 expansion opportunities." Counting the numbered items in Section 4 body: items 1–8 = 8 items. No item 9 is listed. Either the footer count is off by one (should be 8), or a ninth item was removed before publication without updating the footer.
+
+**Fix:** Reconcile the footer count with the body: either add the missing ninth item or correct the footer to "8 expansion opportunities."
 
 ---
 
