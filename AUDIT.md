@@ -72,6 +72,8 @@ _Templates and scripts audited against three ethos principles: config-driven pur
 
 - **`_templates/Quick Create Concept.md` line 79:** `promptYearWhen: "missing"` is already set (correct), but year is still prompted when the current note lacks a year in frontmatter. This is expected behavior for `"missing"` — when year is truly absent, the prompt appears. Low impact; noted for completeness. → **Fix:** No immediate action required unless the intent is to inherit year from the path even when frontmatter is absent, in which case `promptYearWhen: "never"` would suppress all year prompts.
 
+- **`_templates/General Note.md` line 49:** `promptYearWhen: "always"` — year is prompted even when the current note already has a year in its frontmatter. This is the same unnecessary confirmation step documented for Assign Tema, Concept Note Template, and Lecture Note. → **Fix:** Change to `promptYearWhen: "missing"` so the prompt is skipped when year context is already available from the current note.
+
 ## 4. Expansion Opportunities
 
 _Gaps where the system's stated purpose is not yet fully served. Ordered by apparent impact. Items marked (out of scope for this initiative) are captured for future consideration but not addressed in this audit cycle._
@@ -95,4 +97,4 @@ _Gaps where the system's stated purpose is not yet fully served. Ordered by appa
 9. **Redundant fallback on reviewIntervals.medium in date offset** — `Quick Create Concept.md` and `Concept Note Template.md` both use `tp.date.now("YYYY-MM-DD", reviewIntervals.medium ?? 7)`. The `?? 7` guard is redundant when `config.schema.reviewIntervals` is always present after a successful bootstrap. If expansion opportunity E-02 (shared constant) or E-04 (removing the literal fallback object) is implemented, this double-fallback can be cleaned up as part of the same change. Very low impact.
 
 ---
-_Audit generated: 2026-05-15 | 16 files reviewed | 2 critical violations | 19 minor violations | 9 expansion opportunities_
+_Audit generated: 2026-05-15 | 16 files reviewed | 2 critical violations | 22 minor violations | 9 expansion opportunities_
