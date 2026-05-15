@@ -64,35 +64,33 @@ Deferred expansion opportunities from AUDIT.md not addressed in v1.1.
 
 ## Traceability
 
-Populated by roadmapper.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CRIT-01 | — | Pending |
-| CRIT-02 | — | Pending |
-| CFG-01 | — | Pending |
-| CFG-02 | — | Pending |
-| CFG-03 | — | Pending |
-| CFG-04 | — | Pending |
-| CFG-05 | — | Pending |
-| CFG-06 | — | Pending |
-| CFG-07 | — | Pending |
-| CFG-08 | — | Pending |
-| CFG-09 | — | Pending |
-| NAT-01 | — | Pending |
-| NAT-02 | — | Pending |
-| NAT-03 | — | Pending |
-| NAT-04 | — | Pending |
-| FRI-01 | — | Pending |
-| FRI-02 | — | Pending |
-| FRI-03 | — | Pending |
-| FRI-04 | — | Pending |
+| CRIT-01 | Phase 3 | Pending |
+| CRIT-02 | Phase 3 | Pending |
+| NAT-01 | Phase 4 | Pending |
+| NAT-02 | Phase 4 | Pending |
+| NAT-03 | Phase 4 | Pending |
+| NAT-04 | Phase 4 | Pending |
+| FRI-01 | Phase 4 | Pending |
+| FRI-02 | Phase 4 | Pending |
+| FRI-03 | Phase 4 | Pending |
+| FRI-04 | Phase 4 | Pending |
+| CFG-01 | Phase 5 | Pending |
+| CFG-02 | Phase 5 | Pending |
+| CFG-03 | Phase 5 | Pending |
+| CFG-04 | Phase 5 | Pending |
+| CFG-05 | Phase 5 | Pending |
+| CFG-06 | Phase 5 | Pending |
+| CFG-07 | Phase 5 | Pending |
+| CFG-08 | Phase 5 | Pending |
+| CFG-09 | Phase 5 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 19 total
-- Mapped to phases: 0 (roadmapper pending)
-- Unmapped: 19 ⚠️
+- Mapped to phases: 19 (Phase 3: 2, Phase 4: 8, Phase 5: 9)
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-05-15*
-*Last updated: 2026-05-15 after initial definition*
+*Last updated: 2026-05-15 — traceability populated by roadmapper*
