@@ -411,17 +411,19 @@ These sections in the current README are accurate and student-appropriate. Prese
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **University Dashboard and Mark Reviewed — full behaviour unknown**
    - What we know: Both files exist in `_templates/`. Mark Reviewed is mentioned in Features at a glance ("Spaced repetition review workflow"). University Dashboard is mentioned in Repository Layout.
    - What's unclear: Exact prompts, frontmatter structure, and when-to-use for both. Neither has a Usage subsection in the current README.
    - Recommendation: Planner MUST read `_templates/University Dashboard.md` and `_templates/Mark Reviewed.md` before writing their Template Reference entries.
+   - **RESOLVED:** Plan 04 explicitly reads both `_templates/University Dashboard.md` and `_templates/Mark Reviewed.md` in `<read_first>` and provides authoring guidance for each entry in `<action>`.
 
 2. **"How it works" section placement**
    - What we know: D-03 specifies section order ending at Troubleshooting/FAQ; "How it works" is not explicitly placed in D-03's order.
    - What's unclear: Whether "How it works" belongs after Setup (helps students understand why steps matter) or after Template Reference (as a deeper internals section).
    - Recommendation: Place after Setup — it explains the bootstrap pipeline that Setup just configured, and students benefit from understanding the flow before using templates.
+   - **RESOLVED:** Plan 05 action step 11 explicitly places "How it works" after Template Reference and before Repository Layout as a deeper-internals section.
 
 ---
 

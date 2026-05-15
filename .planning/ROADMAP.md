@@ -28,10 +28,19 @@ Plans:
 ---
 
 ### Phase 2: Documentation Overhaul
-**Goal:** Rewrite and expand `README.md` (with supporting `docs/` pages if needed) so a fellow student — comfortable with Obsidian plugins but unfamiliar with this system — can set up, configure, and use the workflow without needing to read the source code.
+**Goal:** Rewrite and expand `README.md` so a fellow student — comfortable with Obsidian plugins but unfamiliar with this system — can set up, configure, and use the workflow without needing to read the source code. Everything lives in a single `README.md` (no `docs/` sub-pages, no `<details>` collapsibles), structured top-to-bottom: TL;DR → Setup → Config Guide → Walkthrough → Template Reference → Troubleshooting/FAQ.
 **Mode:** mvp
 
 **Requirements covered:** DOCS-01, DOCS-02, DOCS-03, DOCS-04, DOCS-05
+
+**Plans:** 5 plans
+
+Plans:
+- [ ] 02-PLAN-01.md — Write Setup Guide fragment (DOCS-01): install Templater + Dataview, configure Template/Script folders, reload scripts, verify
+- [ ] 02-PLAN-02.md — Write Configuration Guide fragment (DOCS-02): anatomy of `universityConfig.js`, key reference table, before/after worked example (English vocabulary + 3-year curriculum + semesters)
+- [ ] 02-PLAN-03.md — Write Workflow Walkthrough fragment (DOCS-03): 4-stage Physics I scenario (lecture → quick concept → link concepts → parcial prep)
+- [ ] 02-PLAN-04.md — Write Template Reference fragment (DOCS-04): all 11 templates uniformly documented with AUDIT callouts for Concept Note overwrite risk and Update Note Status `raw` gap
+- [ ] 02-PLAN-05.md — Assemble README.md (DOCS-05): splice the four fragments in D-03 order, remove `<details>` blocks, drop legacy Quick Start / Configure & Customize / Usage, refresh ToC, add Mark Reviewed + University Dashboard to Repository Layout, add FAQ entry on `raw` status
 
 **Success Criteria:**
 1. Plugin setup section exists with exact steps for Templater folder config and Dataview enable
