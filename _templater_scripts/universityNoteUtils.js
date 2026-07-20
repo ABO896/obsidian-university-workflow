@@ -7,10 +7,47 @@
 */
 
 const path = require("path");
-// requireScript is extracted into scriptLoader.js to avoid duplication with
-// getUniversityContext.js.  Both scripts bootstrap from __dirname which is
-// always set by Node/Electron for modules loaded via require().
-const requireScript = require(path.join(__dirname, "scriptLoader.js"));
+
+// Bootstraps scriptLoader.js itself. Every OTHER cross-script require in
+// this project goes through scriptLoader.js's own requireScript(), which
+// tries app.vault.adapter.basePath before falling back to __dirname. This
+// one call can't delegate to that logic — it's the call that loads it — so
+// the same basePath-first strategy is inlined here (duplicated from
+// getUniversityContext.js's identical bootstrap; both files need it
+// independently because Templater loads each user script separately, so
+// neither can require the other for this bootstrap step). Templater's
+// user-script loader does not guarantee __dirname resolves to the vault's
+// _templater_scripts folder (observed resolving to Obsidian's internal
+// Electron renderer bundle path, e.g. ".../electron.asar/renderer", which
+// breaks a bare require(path.join(__dirname, ...)) bootstrap — see GitHub
+// issue #35). __dirname / relative require remain as fallbacks for
+// Node-based test environments where __dirname is reliable.
+function bootstrapScriptLoader() {
+  const vaultBasePath =
+    typeof app !== "undefined" ? app?.vault?.adapter?.basePath : undefined;
+  const candidates = [];
+
+  if (vaultBasePath) {
+    candidates.push(path.join(vaultBasePath, "_templater_scripts", "scriptLoader.js"));
+  }
+  if (typeof __dirname === "string" && __dirname) {
+    candidates.push(path.join(__dirname, "scriptLoader.js"));
+  }
+  candidates.push("./scriptLoader.js");
+
+  let lastError;
+  for (const candidate of candidates) {
+    try {
+      return require(candidate);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError ?? new Error("Unable to load scriptLoader.js");
+}
+
+const requireScript = bootstrapScriptLoader();
 const getUniversityConfig = requireScript("universityConfig.js");
 
 function universityNoteUtils() {
