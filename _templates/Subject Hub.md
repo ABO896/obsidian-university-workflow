@@ -11,6 +11,7 @@ const {
   ensureFolderPath,
   resolvePlacement,
   toSlug,
+  toDataviewPagesArg,
   labels: helperLabels,
   fsConfig: helperFsConfig,
 } = noteUtils;
@@ -109,6 +110,8 @@ const temaIndexTitle = `${temaContainerName} Index`;
 const yearsToTemasTitle = `${yearLabel} → ${temaContainerName}`;
 // Dataview source scoped to the university root for performance (avoids vault-wide scan).
 const dvSource = JSON.stringify(baseUniversityPath ?? "");
+// dv.pages() needs the folder double-quoted inside the string (see toDataviewPagesArg).
+const dvPagesArg = toDataviewPagesArg(baseUniversityPath);
 // Allowed note types filter — built from config so it tracks any type renames.
 const allowedTypesLiteral = JSON.stringify([lectureType, conceptType, generalType]);
 
@@ -144,7 +147,7 @@ lines.push("```dataviewjs");
 lines.push(String.raw`const course = dv.current().course ?? ${generalLiteral};
 const statuses = ${statusesLiteral};
 const pages = dv
-  .pages(${dvSource})
+  .pages(${dvPagesArg})
   .where((p) => (p.course ?? ${generalLiteral}) === course && p.status)
   .array();
 const counts = Object.fromEntries(statuses.map((s) => [s, 0]));
@@ -191,7 +194,7 @@ const allowedTypes = new Set(${allowedTypesLiteral});
 const getSortValue = (page) => page.created ?? page.date ?? page.file?.ctime;
 
 const pages = dv
-  .pages(${dvSource})
+  .pages(${dvPagesArg})
   .where((page) => (page.course ?? ${generalLiteral}) === targetCourse)
   .where((page) => allowedTypes.has((page.type ?? "").toLowerCase()))
   .array();
@@ -248,7 +251,7 @@ lines.push("```dataviewjs");
 lines.push(String.raw`const targetCourse = dv.current().course ?? ${generalLiteral};
 const allowedTypes = new Set(${allowedTypesLiteral});
 const temasPages = dv
-  .pages(${dvSource})
+  .pages(${dvPagesArg})
   .where((page) => (page.course ?? ${generalLiteral}) === targetCourse)
   .where((page) => allowedTypes.has((page.type ?? "").toLowerCase()))
   .array();

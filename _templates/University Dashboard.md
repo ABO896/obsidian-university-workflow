@@ -13,6 +13,7 @@ const { currentFile, noteUtils, generalLabel, schema, constants } = ctx;
 const {
   ensureFolderPath,
   ensureUniqueFileName,
+  toDataviewPagesArg,
 } = noteUtils;
 
 const noteTypes = schema?.types ?? {};
@@ -23,6 +24,7 @@ const dashboardType = noteTypes["university-dashboard"] ?? "university-dashboard
 
 const universityRoot = constants?.universityRoot ?? "Universidad";
 const dvSource = JSON.stringify(universityRoot);
+const dvPagesArg = toDataviewPagesArg(universityRoot);
 const conceptTypeLiteral = JSON.stringify(conceptType);
 const allowedTypesLiteral = JSON.stringify([lectureType, conceptType, generalType]);
 const statusesLiteral = JSON.stringify(
@@ -76,7 +78,7 @@ lines.push("```dataviewjs");
 lines.push(String.raw`const allowedTypes = new Set(${allowedTypesLiteral});
 const statuses = ${statusesLiteral};
 const pages = dv
-  .pages(${dvSource})
+  .pages(${dvPagesArg})
   .where((p) => allowedTypes.has((p.type ?? "").toLowerCase()) && p.course)
   .array();
 

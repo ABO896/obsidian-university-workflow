@@ -504,11 +504,6 @@ describe('buildConceptBacklinksBlock', () => {
     assert.ok(result.trimEnd().endsWith('```'), 'expected to end with ```');
   });
 
-  test('includes JSON-stringified baseUniversityPath as dvSource', () => {
-    const result = buildConceptBacklinksBlock(defaults);
-    assert.ok(result.includes('"Universidad"'), 'should include JSON-stringified path');
-  });
-
   test('includes JSON-stringified generalLabel', () => {
     const result = buildConceptBacklinksBlock(defaults);
     assert.ok(result.includes('"General"'), 'should include JSON-stringified generalLabel');
@@ -535,5 +530,42 @@ describe('templateBootstrap', () => {
 
   test('module exports a function', () => {
     assert.equal(typeof templateBootstrap, 'function');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// toDataviewPagesArg — dv.pages() needs folder sources double-quoted *inside*
+// the string (dv.pages('"folder"')), matching DQL source syntax. See issue #39.
+// ---------------------------------------------------------------------------
+describe('toDataviewPagesArg', () => {
+  const { toDataviewPagesArg } = utils;
+  // Evaluate the emitted JS literal to get the string dv.pages() receives.
+  const evalLiteral = (literal) => new Function(`return ${literal};`)();
+
+  test('wraps a folder path in double quotes inside the string', () => {
+    assert.equal(evalLiteral(toDataviewPagesArg('Universidad')), '"Universidad"');
+  });
+
+  test('handles nested paths with spaces', () => {
+    assert.equal(evalLiteral(toDataviewPagesArg('Uni/2do Año')), '"Uni/2do Año"');
+  });
+
+  test('empty or missing path yields "" (all pages)', () => {
+    assert.equal(evalLiteral(toDataviewPagesArg('')), '');
+    assert.equal(evalLiteral(toDataviewPagesArg(null)), '');
+    assert.equal(evalLiteral(toDataviewPagesArg(undefined)), '');
+  });
+});
+
+describe('buildConceptBacklinksBlock dv.pages source quoting', () => {
+  test('emits dv.pages with a double-quoted folder source', () => {
+    const result = utils.buildConceptBacklinksBlock({
+      baseUniversityPath: 'Universidad',
+      generalLabel: 'General',
+      lectureType: 'lecture',
+    });
+    const match = result.match(/\.pages\((.*)\)/);
+    assert.ok(match, 'expected a .pages(...) call');
+    assert.equal(new Function(`return ${match[1]};`)(), '"Universidad"');
   });
 });
