@@ -756,10 +756,18 @@ function universityNoteUtils() {
     };
   }
 
+  // Returns a JS string literal for dv.pages(). Dataview requires folder
+  // sources to be double-quoted inside the string (dv.pages('"folder"')),
+  // matching DQL source syntax. An empty path yields "" (all pages).
+  function toDataviewPagesArg(folderPath) {
+    const folder = String(folderPath ?? "");
+    return JSON.stringify(folder ? JSON.stringify(folder) : "");
+  }
+
   // Generates the dataviewjs backlinks block for a concept note. Both templates
   // that create concept notes call this so the query stays in one place.
   function buildConceptBacklinksBlock({ baseUniversityPath, generalLabel: label, lectureType: lType }) {
-    const dvSource = JSON.stringify(baseUniversityPath ?? "");
+    const dvPagesArg = toDataviewPagesArg(baseUniversityPath);
     const generalLiteral = JSON.stringify(label ?? "");
     const lectureTypeLiteral = JSON.stringify(lType ?? "");
 
@@ -774,7 +782,7 @@ function universityNoteUtils() {
       `const sortValue = (page) => page.created ?? page.date ?? page.file?.ctime;`,
       ``,
       `const matches = dv`,
-      `  .pages(${dvSource})`,
+      `  .pages(${dvPagesArg})`,
       `  .where((page) => (page.course ?? ${generalLiteral}) === targetCourse)`,
       `  .where((page) => allowedTypes.has((page.type ?? "").toLowerCase()))`,
       `  .where((page) => {`,
@@ -852,6 +860,7 @@ function universityNoteUtils() {
     resolveSubjectAndParcial: resolvePlacement,
     resolveSubjectParcialTema,
     buildConceptBacklinksBlock,
+    toDataviewPagesArg,
   };
 }
 
