@@ -66,7 +66,7 @@ lines.push("*Concept notes overdue for review — tackle these before new notes.
 lines.push("```dataview");
 lines.push(`TABLE next_review AS "Due", course AS "Course", last_reviewed AS "Last Reviewed"`);
 lines.push(`FROM ${dvSource}`);
-lines.push(`WHERE type = ${conceptTypeLiteral} AND date(next_review) <= date(today)`);
+lines.push(`WHERE type = ${conceptTypeLiteral} AND typeof(date(next_review)) = "date" AND date(next_review) <= date(today)`);
 lines.push("SORT next_review ASC");
 lines.push("```");
 lines.push("");
@@ -107,7 +107,7 @@ lines.push("## ⏳ Open Tasks");
 lines.push("```dataview");
 lines.push(`TASK FROM ${dvSource}`);
 lines.push("WHERE !completed");
-lines.push("SORT file.due ASC");
+lines.push("SORT due ASC");
 lines.push("```");
 lines.push("");
 
