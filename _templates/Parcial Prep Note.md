@@ -178,7 +178,7 @@ lines.push("## ⏳ Open Tasks");
 lines.push("```dataview");
 lines.push(`TASK FROM ${dvSource}`);
 lines.push(`WHERE !completed AND course = ${courseLiteral}`);
-lines.push("SORT file.due ASC");
+lines.push("SORT due ASC");
 lines.push("```");
 lines.push("");
 
